@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface MatchCardProps {
   match: {
@@ -32,8 +30,7 @@ interface MatchCardProps {
 }
 
 function formatKickoff(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+  return new Date(iso).toLocaleString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -42,11 +39,20 @@ function formatKickoff(iso: string) {
   });
 }
 
-function pointsBadgeColor(pts: number | null) {
-  if (pts === null) return "secondary";
-  if (pts === 5) return "default";
-  if (pts >= 3) return "outline";
-  return "destructive";
+function PointsBadge({ pts }: { pts: number | null }) {
+  if (pts === 5) return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(150,133,228,0.12)", color: "#9685E4" }}>5 pts ⭐</span>
+  );
+  if (pts === 4) return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(71,126,227,0.12)", color: "#477EE3" }}>4 pts</span>
+  );
+  if (pts === 3) return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(50,190,191,0.12)", color: "#32BEBF" }}>3 pts</span>
+  );
+  if (pts === 0) return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(254,118,55,0.1)", color: "#FE7637" }}>0 pts</span>
+  );
+  return null;
 }
 
 export function MatchCard({ match, prediction }: MatchCardProps) {
@@ -68,7 +74,6 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
   const teamBName = match.teamB?.name ?? match.teamBLabel ?? "TBD";
   const teamAFlag = match.teamA?.flagEmoji ?? "🏳";
   const teamBFlag = match.teamB?.flagEmoji ?? "🏳";
-
   const finished = match.status === "FINISHED";
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,7 +81,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
     const a = parseInt(scoreA);
     const b = parseInt(scoreB);
     if (isNaN(a) || isNaN(b) || a < 0 || b < 0) {
-      setError("Enter valid scores (0 or more)");
+      setError("Enter valid scores");
       return;
     }
     setSaving(true);
@@ -102,81 +107,83 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
   }
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          {/* Teams */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="text-xl">{teamAFlag}</span>
-            <span className="font-medium truncate">{teamAName}</span>
-            <span className="text-muted-foreground text-sm mx-1">vs</span>
-            <span className="font-medium truncate">{teamBName}</span>
-            <span className="text-xl">{teamBFlag}</span>
-          </div>
-
-          {/* Score inputs or result */}
-          <div className="flex items-center gap-2">
-            {finished ? (
-              <div className="flex items-center gap-1 text-lg font-bold">
-                <span>{match.scoreA}</span>
-                <span className="text-muted-foreground">–</span>
-                <span>{match.scoreB}</span>
-              </div>
-            ) : isLocked ? (
-              <Badge variant="secondary">Locked</Badge>
-            ) : (
-              <form onSubmit={handleSubmit} className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  min={0}
-                  max={99}
-                  value={scoreA}
-                  onChange={(e) => setScoreA(e.target.value)}
-                  className="w-14 text-center"
-                  disabled={saving}
-                />
-                <span className="text-muted-foreground">–</span>
-                <Input
-                  type="number"
-                  min={0}
-                  max={99}
-                  value={scoreB}
-                  onChange={(e) => setScoreB(e.target.value)}
-                  className="w-14 text-center"
-                  disabled={saving}
-                />
-                <Button type="submit" size="sm" disabled={saving}>
-                  {saving ? "…" : saved ? "✓" : "Save"}
-                </Button>
-              </form>
-            )}
-
-            {/* Points badge */}
-            {prediction?.pointsEarned !== undefined && prediction.pointsEarned !== null && (
-              <Badge variant={pointsBadgeColor(prediction.pointsEarned)}>
-                {prediction.pointsEarned} pts
-              </Badge>
-            )}
-            {prediction && !finished && !isLocked && (
-              <span className="text-xs text-muted-foreground">
-                ({prediction.predictedA}–{prediction.predictedB})
-              </span>
-            )}
-          </div>
+    <div
+      className="rounded-2xl px-4 py-3 transition-shadow hover:shadow-sm"
+      style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+    >
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        {/* Teams */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-lg">{teamAFlag}</span>
+          <span className="text-sm font-medium truncate" style={{ color: "#101418" }}>{teamAName}</span>
+          <span className="text-xs px-1" style={{ color: "#8A9199" }}>vs</span>
+          <span className="text-sm font-medium truncate" style={{ color: "#101418" }}>{teamBName}</span>
+          <span className="text-lg">{teamBFlag}</span>
         </div>
 
-        {/* Metadata row */}
-        <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-          <span>#{match.matchNumber}</span>
-          <span>{formatKickoff(match.kickoff)}</span>
-          <span>{match.venue}, {match.city}</span>
-          {!isLocked && !finished && (
-            <span className="text-amber-500 font-medium">Open for predictions</span>
+        {/* Score / input area */}
+        <div className="flex items-center gap-2 shrink-0">
+          {finished ? (
+            <span className="text-base font-bold tabular-nums" style={{ color: "#101418" }}>
+              {match.scoreA} – {match.scoreB}
+            </span>
+          ) : isLocked ? (
+            <span
+              className="text-xs px-2.5 py-0.5 rounded-full font-medium"
+              style={{ backgroundColor: "#F3F4F6", color: "#8A9199" }}
+            >
+              Locked
+            </span>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                min={0}
+                max={99}
+                value={scoreA}
+                onChange={(e) => setScoreA(e.target.value)}
+                className="w-12 text-center px-1 h-8 text-sm"
+                style={{ borderRadius: "8px" }}
+                disabled={saving}
+              />
+              <span className="text-xs" style={{ color: "#8A9199" }}>–</span>
+              <Input
+                type="number"
+                min={0}
+                max={99}
+                value={scoreB}
+                onChange={(e) => setScoreB(e.target.value)}
+                className="w-12 text-center px-1 h-8 text-sm"
+                style={{ borderRadius: "8px" }}
+                disabled={saving}
+              />
+              <Button type="submit" size="sm" variant="accent" disabled={saving}>
+                {saving ? "…" : saved ? "Saved" : "Save"}
+              </Button>
+            </form>
+          )}
+
+          {prediction?.pointsEarned !== undefined && <PointsBadge pts={prediction.pointsEarned} />}
+
+          {prediction && !finished && !isLocked && prediction.predictedA !== undefined && (
+            <span className="text-xs tabular-nums" style={{ color: "#8A9199" }}>
+              {prediction.predictedA}–{prediction.predictedB}
+            </span>
           )}
         </div>
+      </div>
 
-        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
-      </CardContent>
-    </Card>
+      {/* Meta */}
+      <div className="mt-1.5 flex items-center gap-3 text-xs flex-wrap" style={{ color: "#8A9199" }}>
+        <span>#{match.matchNumber}</span>
+        <span>{formatKickoff(match.kickoff)}</span>
+        <span>{match.venue}</span>
+        {!isLocked && !finished && (
+          <span className="font-medium" style={{ color: "#32BEBF" }}>Open</span>
+        )}
+      </div>
+
+      {error && <p className="mt-1 text-xs" style={{ color: "#FE7637" }}>{error}</p>}
+    </div>
   );
 }

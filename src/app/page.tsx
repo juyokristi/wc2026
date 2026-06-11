@@ -7,24 +7,70 @@ export default async function HomePage() {
   if (session) redirect("/predict");
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] px-4">
-      <div className="max-w-lg text-center space-y-6">
-        <div className="text-6xl">⚽</div>
-        <h1 className="text-4xl font-bold tracking-tight">WC2026 Predictor</h1>
-        <p className="text-muted-foreground text-lg">
-          Predict scores for all 104 World Cup 2026 matches. Earn points for
-          correct results, margins, and exact scores. Climb the leaderboard.
+    <div
+      className="flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] px-6"
+      style={{
+        background: "radial-gradient(240px 180px at 50% 100%, rgba(150, 133, 228, 0.18) 0%, rgba(150, 133, 228, 0.06) 50%, transparent 85%), #0B0F14",
+      }}
+    >
+      <div className="max-w-lg text-center space-y-8">
+        {/* Eyebrow */}
+        <p
+          className="text-xs font-bold uppercase tracking-[2px]"
+          style={{ color: "#9685E4" }}
+        >
+          Juyo internal · WC2026
         </p>
-        <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-          <p>🎯 <strong>5 pts</strong> — exact score</p>
-          <p>🔥 <strong>4 pts</strong> — correct result + same goal margin</p>
-          <p>✅ <strong>3 pts</strong> — correct result only</p>
+
+        {/* Headline */}
+        <div className="space-y-4">
+          <h1
+            className="text-5xl font-bold leading-tight"
+            style={{ color: "#FAFAFA", letterSpacing: "-0.8px" }}
+          >
+            Predict every match.<br />Top the table.
+          </h1>
+          <p className="text-lg" style={{ color: "#8A9199", lineHeight: "1.7" }}>
+            Pick the score for all 104 World Cup 2026 matches.
+            Earn points for the result, the margin, and the exact score.
+          </p>
         </div>
-        <a href="/api/auth/signin/google?callbackUrl=%2Fpredict" className="w-full max-w-xs">
-          <Button size="lg" className="w-full">
+
+        {/* Scoring rules */}
+        <div
+          className="rounded-2xl p-5 space-y-2 text-left"
+          style={{ backgroundColor: "#161B22", border: "1px solid #252B34" }}
+        >
+          <p className="text-xs font-bold uppercase tracking-[2px] mb-3" style={{ color: "#9685E4" }}>
+            How points work
+          </p>
+          <div className="flex items-center justify-between text-sm" style={{ color: "#FAFAFA" }}>
+            <span>Exact score</span>
+            <span className="font-semibold" style={{ color: "#9685E4" }}>5 pts</span>
+          </div>
+          <div className="h-px" style={{ backgroundColor: "#252B34" }} />
+          <div className="flex items-center justify-between text-sm" style={{ color: "#FAFAFA" }}>
+            <span>Correct result + same goal margin</span>
+            <span className="font-semibold" style={{ color: "#9685E4" }}>4 pts</span>
+          </div>
+          <div className="h-px" style={{ backgroundColor: "#252B34" }} />
+          <div className="flex items-center justify-between text-sm" style={{ color: "#FAFAFA" }}>
+            <span>Correct result only</span>
+            <span className="font-semibold" style={{ color: "#9685E4" }}>3 pts</span>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <form action="/api/auth/signin/google" method="POST" className="w-full">
+          <input type="hidden" name="callbackUrl" value="/predict" />
+          <Button type="submit" size="lg" variant="accent" className="w-full">
             Sign in with Google
           </Button>
-        </a>
+        </form>
+
+        <p className="text-xs" style={{ color: "#8A9199" }}>
+          Use your Juyo Google account to sign in.
+        </p>
       </div>
     </div>
   );

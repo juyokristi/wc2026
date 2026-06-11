@@ -1,16 +1,37 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
 
-function pointsBadge(pts: number | null) {
-  if (pts === null) return <Badge variant="secondary">Pending</Badge>;
-  if (pts === 5) return <Badge className="bg-green-500 text-white">5 pts ⭐</Badge>;
-  if (pts === 4) return <Badge className="bg-blue-500 text-white">4 pts 🔥</Badge>;
-  if (pts === 3) return <Badge className="bg-yellow-500 text-white">3 pts ✅</Badge>;
-  return <Badge variant="destructive">0 pts</Badge>;
+function PointsBadge({ pts }: { pts: number | null }) {
+  if (pts === null) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "#F3F4F6", color: "#8A9199" }}>
+        Pending
+      </span>
+    );
+  }
+  if (pts === 5) return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(150,133,228,0.12)", color: "#9685E4" }}>
+      5 pts ⭐
+    </span>
+  );
+  if (pts === 4) return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(71,126,227,0.12)", color: "#477EE3" }}>
+      4 pts
+    </span>
+  );
+  if (pts === 3) return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(50,190,191,0.12)", color: "#32BEBF" }}>
+      3 pts
+    </span>
+  );
+  return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: "rgba(254,118,55,0.1)", color: "#FE7637" }}>
+      0 pts
+    </span>
+  );
 }
 
 export default async function DashboardPage() {
@@ -39,94 +60,117 @@ export default async function DashboardPage() {
   const scored = predictions.filter((p) => p.pointsEarned !== null).length;
   const exact = predictions.filter((p) => p.pointsEarned === 5).length;
   const correct = predictions.filter((p) => (p.pointsEarned ?? 0) >= 3).length;
+  const accuracy = scored > 0 ? Math.round((correct / scored) * 100) : 0;
 
   const displayName = user?.displayName ?? user?.name ?? "Player";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
       {/* Profile header */}
       <div className="flex items-center gap-4">
-        <Avatar className="h-14 w-14">
+        <Avatar className="h-12 w-12">
           <AvatarImage src={user?.image ?? undefined} alt={displayName} />
-          <AvatarFallback>{displayName[0]?.toUpperCase()}</AvatarFallback>
+          <AvatarFallback className="font-semibold" style={{ backgroundColor: "rgba(150,133,228,0.12)", color: "#9685E4" }}>
+            {displayName[0]?.toUpperCase()}
+          </AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-2xl font-bold">{displayName}</h1>
-          <p className="text-muted-foreground text-sm">{user?.email}</p>
+          <h1 className="text-2xl font-bold" style={{ letterSpacing: "-0.5px", color: "#101418" }}>
+            {displayName}
+          </h1>
+          <p className="text-sm" style={{ color: "#8A9199" }}>{user?.email}</p>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-3xl font-bold text-primary">{totalPoints}</div>
-            <div className="text-xs text-muted-foreground mt-1">Total Points</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-3xl font-bold">{predictions.length}</div>
-            <div className="text-xs text-muted-foreground mt-1">Predictions Made</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-3xl font-bold">{exact}</div>
-            <div className="text-xs text-muted-foreground mt-1">Exact Scores ⭐</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-3xl font-bold">{scored > 0 ? Math.round((correct / scored) * 100) : 0}%</div>
-            <div className="text-xs text-muted-foreground mt-1">Result Accuracy</div>
-          </CardContent>
-        </Card>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Total points", value: totalPoints, accent: true },
+          { label: "Predictions made", value: predictions.length, accent: false },
+          { label: "Exact scores", value: exact, accent: false },
+          { label: "Result accuracy", value: `${accuracy}%`, accent: false },
+        ].map(({ label, value, accent }) => (
+          <div
+            key={label}
+            className="rounded-2xl p-4"
+            style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+          >
+            <div
+              className="text-2xl font-bold"
+              style={{ color: accent ? "#9685E4" : "#101418", letterSpacing: "-0.3px" }}
+            >
+              {value}
+            </div>
+            <div className="text-xs mt-1" style={{ color: "#8A9199" }}>{label}</div>
+          </div>
+        ))}
       </div>
 
       {/* Prediction history */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Predictions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {predictions.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No predictions yet. Head to the <a href="/predict" className="underline">Predict</a> page to get started.</p>
-          ) : (
-            <div className="space-y-2">
-              {predictions.map((p) => {
-                const teamA = p.match.teamA?.name ?? p.match.teamALabel ?? "TBD";
-                const teamB = p.match.teamB?.name ?? p.match.teamBLabel ?? "TBD";
-                const flagA = p.match.teamA?.flagEmoji ?? "🏳";
-                const flagB = p.match.teamB?.flagEmoji ?? "🏳";
-                const finished = p.match.status === "FINISHED";
-                return (
-                  <div key={p.id} className="flex items-center justify-between gap-2 py-2 border-b last:border-0">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span>{flagA}</span>
-                      <span className="text-sm truncate">{teamA}</span>
-                      <span className="text-muted-foreground text-sm">vs</span>
-                      <span className="text-sm truncate">{teamB}</span>
-                      <span>{flagB}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm text-muted-foreground">
-                        {p.predictedA}–{p.predictedB}
-                      </span>
-                      {finished && p.match.scoreA !== null && (
-                        <span className="text-sm font-medium">
-                          ({p.match.scoreA}–{p.match.scoreB})
-                        </span>
-                      )}
-                      {pointsBadge(p.pointsEarned)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      <div>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold" style={{ color: "#101418" }}>Your predictions</h2>
+          {predictions.length === 0 && (
+            <Link href="/predict" className="text-sm font-medium" style={{ color: "#9685E4" }}>
+              Make predictions →
+            </Link>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {predictions.length === 0 ? (
+          <div
+            className="rounded-2xl py-12 text-center"
+            style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+          >
+            <p className="text-sm" style={{ color: "#8A9199" }}>
+              No predictions yet.{" "}
+              <Link href="/predict" className="font-medium" style={{ color: "#9685E4" }}>
+                Head to Predict
+              </Link>{" "}
+              to get started.
+            </p>
+          </div>
+        ) : (
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+          >
+            {predictions.map((p, i) => {
+              const teamA = p.match.teamA?.name ?? p.match.teamALabel ?? "TBD";
+              const teamB = p.match.teamB?.name ?? p.match.teamBLabel ?? "TBD";
+              const flagA = p.match.teamA?.flagEmoji ?? "🏳";
+              const flagB = p.match.teamB?.flagEmoji ?? "🏳";
+              const finished = p.match.status === "FINISHED";
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-3 px-5 py-3"
+                  style={{ borderBottom: i < predictions.length - 1 ? "1px solid #E4E6EA" : "none" }}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-base">{flagA}</span>
+                    <span className="text-sm truncate" style={{ color: "#101418" }}>{teamA}</span>
+                    <span className="text-xs" style={{ color: "#8A9199" }}>vs</span>
+                    <span className="text-sm truncate" style={{ color: "#101418" }}>{teamB}</span>
+                    <span className="text-base">{flagB}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm tabular-nums" style={{ color: "#3A3F47" }}>
+                      {p.predictedA}–{p.predictedB}
+                    </span>
+                    {finished && p.match.scoreA !== null && (
+                      <span className="text-xs font-medium" style={{ color: "#8A9199" }}>
+                        ({p.match.scoreA}–{p.match.scoreB})
+                      </span>
+                    )}
+                    <PointsBadge pts={p.pointsEarned} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
@@ -16,53 +17,84 @@ interface NavbarProps {
 }
 
 export function Navbar({ user }: NavbarProps) {
+  const pathname = usePathname();
+
+  function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+    const active = pathname === href || pathname.startsWith(href + "/");
+    return (
+      <Link
+        href={href}
+        className={`text-sm font-medium transition-colors ${
+          active ? "text-white" : "text-white/50 hover:text-white/80"
+        }`}
+      >
+        {children}
+      </Link>
+    );
+  }
+
+  const displayName = user?.displayName ?? user?.name;
+
   return (
-    <nav className="border-b bg-background/95 backdrop-blur sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="font-bold text-lg tracking-tight">
-            ⚽ WC2026
+    <nav style={{ backgroundColor: "#101418" }} className="sticky top-0 z-50 border-b border-white/8">
+      <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+        {/* Logo + nav links */}
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-2">
+            <span className="font-bold text-white text-base tracking-tight">Juyo</span>
+            <span className="text-white/30 text-sm">|</span>
+            <span className="text-white/60 text-sm">WC2026</span>
           </Link>
-          {user && (
-            <>
-              <Link href="/predict" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Predict
-              </Link>
-              <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Dashboard
-              </Link>
-            </>
-          )}
-          <Link href="/leaderboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Leaderboard
-          </Link>
+
+          <div className="hidden sm:flex items-center gap-6">
+            <NavLink href="/leaderboard">Leaderboard</NavLink>
+            {user && (
+              <>
+                <NavLink href="/predict">Predict</NavLink>
+                <NavLink href="/dashboard">My scores</NavLink>
+              </>
+            )}
+          </div>
         </div>
 
+        {/* Auth area */}
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <Link href="/profile" className="flex items-center gap-2 text-sm">
-                {user.image && (
+              <Link href="/profile" className="flex items-center gap-2">
+                {user.image ? (
                   <Image
                     src={user.image}
-                    alt={user.name ?? "avatar"}
+                    alt={displayName ?? "avatar"}
                     width={28}
                     height={28}
-                    className="rounded-full"
+                    className="rounded-full opacity-90 hover:opacity-100 transition-opacity"
                   />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white text-xs font-medium">
+                    {displayName?.[0]?.toUpperCase()}
+                  </div>
                 )}
-                <span className="hidden sm:inline text-muted-foreground hover:text-foreground transition-colors">
-                  {user.displayName ?? user.name}
+                <span className="hidden sm:inline text-sm text-white/60 hover:text-white/90 transition-colors">
+                  {displayName}
                 </span>
               </Link>
-              <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white/50 hover:text-white hover:bg-white/10 border-0"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
                 Sign out
               </Button>
             </>
           ) : (
-            <a href="/api/auth/signin/google?callbackUrl=%2Fpredict">
-              <Button size="sm">Sign in with Google</Button>
-            </a>
+            <form action="/api/auth/signin/google" method="POST">
+              <input type="hidden" name="callbackUrl" value="/predict" />
+              <Button type="submit" size="sm" variant="accent">
+                Sign in
+              </Button>
+            </form>
           )}
         </div>
       </div>
