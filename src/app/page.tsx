@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { auth, signIn } from "@/auth";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -61,8 +61,13 @@ export default async function HomePage() {
         </div>
 
         {/* CTA */}
-        <form action="/api/auth/signin/google" method="POST" className="w-full">
-          <input type="hidden" name="callbackUrl" value="/predict" />
+        <form
+          action={async () => {
+            "use server";
+            await signIn("google", { redirectTo: "/predict" });
+          }}
+          className="w-full"
+        >
           <Button type="submit" size="lg" variant="accent" className="w-full">
             Sign in with Google
           </Button>

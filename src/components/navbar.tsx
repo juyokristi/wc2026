@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 
 interface NavbarProps {
@@ -89,12 +89,13 @@ export function Navbar({ user }: NavbarProps) {
               </Button>
             </>
           ) : (
-            <form action="/api/auth/signin/google" method="POST">
-              <input type="hidden" name="callbackUrl" value="/predict" />
-              <Button type="submit" size="sm" variant="accent">
-                Sign in
-              </Button>
-            </form>
+            <Button
+              size="sm"
+              variant="accent"
+              onClick={() => signIn("google", { callbackUrl: "/predict" })}
+            >
+              Sign in
+            </Button>
           )}
         </div>
       </div>
