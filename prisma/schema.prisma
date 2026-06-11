@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?
+  image         String?
+  displayName   String?
+  createdAt     DateTime     @default(now())
+  accounts      Account[]
+  sessions      Session[]
+  predictions   Prediction[]
+}
+
+model Team {
+  id            String  @id @default(cuid())
+  name          String  @unique
+  code          String  @unique
+  flagEmoji     String
+  group         String
+  confederation String
+  homeMatches   Match[] @relation("TeamA")
+  awayMatches   Match[] @relation("TeamB")
+}
+
+model Match {
+  id          String      @id @default(cuid())
+  matchNumber Int         @unique
+  stage       MatchStage
+  group       String?
+  matchday    Int?
+  teamAId     String?
+  teamBId     String?
+  teamA       Team?       @relation("TeamA", fields: [teamAId], references: [id])
+  teamB       Team?       @relation("TeamB", fields: [teamBId], references: [id])
+  teamALabel  String?
+  teamBLabel  String?
+  kickoff     DateTime
+  venue       String
+  city        String
+  country     String
+  scoreA      Int?
+  scoreB      Int?
+  status      MatchStatus @default(SCHEDULED)
+  predictions Prediction[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum MatchStage {
+  GROUP
+  ROUND_OF_32
+  ROUND_OF_16
+  QUARTER_FINAL
+  SEMI_FINAL
+  THIRD_PLACE
+  FINAL
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  CANCELLED
+}
+
+model Prediction {
+  id           String   @id @default(cuid())
+  userId       String
+  matchId      String
+  predictedA   Int
+  predictedB   Int
+  pointsEarned Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match        Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId])
+}
