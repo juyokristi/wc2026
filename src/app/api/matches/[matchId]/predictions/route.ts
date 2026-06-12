@@ -18,13 +18,6 @@ export async function GET(
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }
 
-  if (match.kickoff > new Date()) {
-    return NextResponse.json(
-      { error: "Predictions not visible until match locks" },
-      { status: 403 }
-    );
-  }
-
   const predictions = await prisma.prediction.findMany({
     where: { matchId },
     include: {

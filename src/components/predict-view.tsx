@@ -56,7 +56,7 @@ export function PredictView({
   stageOrder,
   STAGE_LABELS,
 }: PredictViewProps) {
-  const [view, setView] = useState<"group" | "day">("group");
+  const [view, setView] = useState<"group" | "day">("day");
 
   const allMatches: SerializedMatch[] = [
     ...Object.values(byGroup).flat(),

@@ -212,8 +212,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
 
       {error && <p className="mt-1 text-xs" style={{ color: "#FE7637" }}>{error}</p>}
 
-      {isLocked && (
-        <div className="mt-2">
+      <div className="mt-2">
           <button
             className="text-xs font-medium"
             style={{ color: "var(--muted-foreground)" }}
@@ -243,7 +242,6 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }
