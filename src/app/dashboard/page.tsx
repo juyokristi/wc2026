@@ -56,6 +56,16 @@ export default async function DashboardPage() {
     orderBy: { match: { kickoff: "asc" } },
   });
 
+  const allRanked = await prisma.prediction.groupBy({
+    by: ["userId"],
+    _sum: { pointsEarned: true },
+    where: { pointsEarned: { not: null } },
+    orderBy: { _sum: { pointsEarned: "desc" } },
+  });
+  const myRankIdx = allRanked.findIndex((r) => r.userId === session.user.id);
+  const myRank = myRankIdx >= 0 ? myRankIdx + 1 : null;
+  const totalPlayers = allRanked.length;
+
   const totalPoints = predictions.reduce((sum, p) => sum + (p.pointsEarned ?? 0), 0);
   const scored = predictions.filter((p) => p.pointsEarned !== null).length;
   const exact = predictions.filter((p) => p.pointsEarned === 5).length;
@@ -137,6 +147,12 @@ export default async function DashboardPage() {
             sub: bestMatch
               ? `${bestMatch.match.teamA?.code ?? bestMatch.match.teamALabel ?? "TBD"} vs ${bestMatch.match.teamB?.code ?? bestMatch.match.teamBLabel ?? "TBD"}`
               : null,
+          },
+          {
+            label: "Leaderboard rank",
+            value: myRank ? `#${myRank}` : "–",
+            accent: myRank === 1,
+            sub: myRank ? `of ${totalPlayers} player${totalPlayers !== 1 ? "s" : ""}` : "No scored matches yet",
           },
         ].map(({ label, value, accent, sub }) => (
           <div

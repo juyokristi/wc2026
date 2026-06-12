@@ -78,16 +78,25 @@ export default async function PredictPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[2px] mb-2" style={{ color: "#9685E4" }}>
-          WC2026
-        </p>
-        <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "var(--foreground)" }}>
-          Predictions
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-          Enter scores before kickoff. Predictions lock automatically when each match starts.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[2px] mb-2" style={{ color: "#9685E4" }}>
+            WC2026
+          </p>
+          <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "var(--foreground)" }}>
+            Predictions
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+            Enter scores before kickoff. Predictions lock automatically when each match starts.
+          </p>
+        </div>
+        <Link
+          href="/predict/bulk"
+          className="text-sm font-semibold shrink-0 mt-1"
+          style={{ color: "#9685E4" }}
+        >
+          Quick predict →
+        </Link>
       </div>
 
       {!dbUser?.displayName && (

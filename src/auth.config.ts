@@ -17,7 +17,9 @@ export const authConfig: NextAuthConfig = {
         path.startsWith("/predict") ||
         path.startsWith("/profile") ||
         path.startsWith("/admin") ||
-        path.startsWith("/players");
+        path.startsWith("/players") ||
+        path.startsWith("/standings") ||
+        path.startsWith("/bracket");
 
       if (isProtected && !isLoggedIn) return false;
       return true;

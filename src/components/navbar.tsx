@@ -54,6 +54,8 @@ export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
             <NavLink href="/leaderboard">Leaderboard</NavLink>
             {user && (
               <>
+                <NavLink href="/standings">Standings</NavLink>
+                <NavLink href="/bracket">Bracket</NavLink>
                 <NavLink href="/predict">
                   Predict
                   {(openCount ?? 0) > 0 && (

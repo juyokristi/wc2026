@@ -253,7 +253,28 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
               {loadingPredictions ? (
                 <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Loading…</p>
               ) : predictions?.length ? (
-                predictions.map((p, i) => (
+                <>
+                  {(() => {
+                    const home = predictions.filter((p) => p.predictedA > p.predictedB).length;
+                    const draw = predictions.filter((p) => p.predictedA === p.predictedB).length;
+                    const away = predictions.filter((p) => p.predictedA < p.predictedB).length;
+                    const total = predictions.length;
+                    return (
+                      <div className="mb-3">
+                        <div className="flex rounded-full overflow-hidden h-1.5 mb-1.5" style={{ gap: "2px" }}>
+                          {home > 0 && <div style={{ width: `${(home / total) * 100}%`, backgroundColor: "#9685E4", borderRadius: "9999px" }} />}
+                          {draw > 0 && <div style={{ width: `${(draw / total) * 100}%`, backgroundColor: "#32BEBF", borderRadius: "9999px" }} />}
+                          {away > 0 && <div style={{ width: `${(away / total) * 100}%`, backgroundColor: "#FE7637", borderRadius: "9999px" }} />}
+                        </div>
+                        <div className="flex gap-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                          <span style={{ color: "#9685E4" }}>{Math.round((home / total) * 100)}% {teamAName.split(" ")[0]}</span>
+                          <span style={{ color: "#32BEBF" }}>{Math.round((draw / total) * 100)}% Draw</span>
+                          <span style={{ color: "#FE7637" }}>{Math.round((away / total) * 100)}% {teamBName.split(" ").at(-1)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {predictions.map((p, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <span style={{ color: "var(--muted-foreground)" }}>{p.userName}</span>
                     <span className="tabular-nums font-medium" style={{ color: "var(--foreground)" }}>
@@ -264,6 +285,8 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                     </span>
                   </div>
                 ))
+                  ))}
+                </>
               ) : (
                 <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>No predictions yet.</p>
               )}

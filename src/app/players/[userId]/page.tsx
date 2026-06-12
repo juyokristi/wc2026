@@ -109,6 +109,14 @@ export default async function PlayerPage({ params }: Props) {
   const theirTotalPts = sharedScored.reduce((s, p) => s + (p.pointsEarned ?? 0), 0);
   const myTotalPts = sharedScored.reduce((s, p) => s + (myPredMap[p.matchId]?.pointsEarned ?? 0), 0);
 
+  const outcome = (a: number, b: number) => (a > b ? "H" : a < b ? "A" : "D");
+  const contestedMatches = theirPredictions.filter((p) => {
+    if (p.match.status === "FINISHED") return false;
+    const mine = myPredMap[p.matchId];
+    if (!mine) return false;
+    return outcome(p.predictedA, p.predictedB) !== outcome(mine.predictedA, mine.predictedB);
+  });
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
       {/* Profile header */}
@@ -167,6 +175,56 @@ export default async function PlayerPage({ params }: Props) {
               : "Tied"}{" "}
             · {sharedScored.length} match{sharedScored.length !== 1 ? "es" : ""} scored
           </p>
+        </div>
+      )}
+
+      {/* Contested matches */}
+      {contestedMatches.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-3" style={{ color: "var(--foreground)" }}>
+            Key matches
+            <span className="ml-2 text-sm font-normal" style={{ color: "var(--muted-foreground)" }}>
+              — you predicted different outcomes on {contestedMatches.length} upcoming match{contestedMatches.length !== 1 ? "es" : ""}
+            </span>
+          </h2>
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+          >
+            {contestedMatches.map((p, i) => {
+              const teamA = p.match.teamA?.name ?? p.match.teamALabel ?? "TBD";
+              const teamB = p.match.teamB?.name ?? p.match.teamBLabel ?? "TBD";
+              const flagA = p.match.teamA?.flagEmoji ?? "🏳";
+              const flagB = p.match.teamB?.flagEmoji ?? "🏳";
+              const mine = myPredMap[p.matchId]!;
+              return (
+                <div
+                  key={p.matchId}
+                  className="flex items-center justify-between gap-4 px-5 py-3 flex-wrap"
+                  style={{ borderBottom: i < contestedMatches.length - 1 ? "1px solid var(--border)" : "none" }}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span>{flagA}</span>
+                    <span className="text-sm truncate" style={{ color: "var(--foreground)" }}>{teamA}</span>
+                    <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>vs</span>
+                    <span className="text-sm truncate" style={{ color: "var(--foreground)" }}>{teamB}</span>
+                    <span>{flagB}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs shrink-0">
+                    <span>
+                      <span style={{ color: "var(--muted-foreground)" }}>You </span>
+                      <span className="tabular-nums font-medium" style={{ color: "var(--foreground)" }}>{mine.predictedA}–{mine.predictedB}</span>
+                    </span>
+                    <span style={{ color: "var(--muted-foreground)" }}>vs</span>
+                    <span>
+                      <span style={{ color: "var(--muted-foreground)" }}>{displayName.split(" ")[0]} </span>
+                      <span className="tabular-nums font-medium" style={{ color: "#9685E4" }}>{p.predictedA}–{p.predictedB}</span>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
