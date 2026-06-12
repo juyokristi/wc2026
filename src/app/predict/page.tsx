@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { MatchStage } from "@/generated/prisma/client";
 import { PredictView } from "@/components/predict-view";
+import Link from "next/link";
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP: "Group Stage",
@@ -18,7 +19,7 @@ export default async function PredictPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/");
 
-  const [matches, userPredictions] = await Promise.all([
+  const [matches, userPredictions, dbUser] = await Promise.all([
     prisma.match.findMany({
       include: {
         teamA: { select: { name: true, flagEmoji: true, code: true } },
@@ -29,6 +30,10 @@ export default async function PredictPage() {
     prisma.prediction.findMany({
       where: { userId: session.user.id },
       select: { matchId: true, predictedA: true, predictedB: true, pointsEarned: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, displayName: true },
     }),
   ]);
 
@@ -84,6 +89,27 @@ export default async function PredictPage() {
           Enter scores before kickoff. Predictions lock automatically when each match starts.
         </p>
       </div>
+
+      {!dbUser?.displayName && (
+        <div
+          className="rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
+          style={{
+            backgroundColor: "rgba(150,133,228,0.1)",
+            border: "1px solid rgba(150,133,228,0.25)",
+          }}
+        >
+          <p className="text-sm" style={{ color: "#9685E4" }}>
+            Set a display name so teammates can recognize you on the leaderboard.
+          </p>
+          <Link
+            href="/profile"
+            className="text-sm font-semibold shrink-0"
+            style={{ color: "#9685E4" }}
+          >
+            Set name →
+          </Link>
+        </div>
+      )}
 
       <PredictView
         byGroup={serializedByGroup}

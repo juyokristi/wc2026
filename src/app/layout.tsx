@@ -22,12 +22,15 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const isAdmin =
+    !!session?.user?.email &&
+    session.user.email === process.env.ADMIN_EMAIL;
 
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers>
-          <Navbar user={session?.user ?? null} />
+          <Navbar user={session?.user ?? null} isAdmin={isAdmin} />
           <main className="flex-1">{children}</main>
         </Providers>
       </body>

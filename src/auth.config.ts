@@ -15,7 +15,9 @@ export const authConfig: NextAuthConfig = {
       const isProtected =
         path.startsWith("/dashboard") ||
         path.startsWith("/predict") ||
-        path.startsWith("/profile");
+        path.startsWith("/profile") ||
+        path.startsWith("/admin") ||
+        path.startsWith("/players");
 
       if (isProtected && !isLoggedIn) return false;
       return true;

@@ -71,14 +71,26 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [countdown, setCountdown] = useState<string | null>(null);
   const [showPredictions, setShowPredictions] = useState(false);
   const [predictions, setPredictions] = useState<PredictionEntry[] | null>(null);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
 
   useEffect(() => {
-    const check = () => setIsLocked(new Date(match.kickoff) <= new Date());
+    const check = () => {
+      setIsLocked(new Date(match.kickoff) <= new Date());
+      const diff = new Date(match.kickoff).getTime() - Date.now();
+      if (diff > 0 && diff < 24 * 60 * 60 * 1000) {
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        setCountdown(h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`);
+      } else {
+        setCountdown(null);
+      }
+    };
     check();
-    const t = setInterval(check, 10000);
+    const t = setInterval(check, 1000);
     return () => clearInterval(t);
   }, [match.kickoff]);
 
@@ -87,6 +99,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
   const teamAFlag = match.teamA?.flagEmoji ?? "🏳";
   const teamBFlag = match.teamB?.flagEmoji ?? "🏳";
   const finished = match.status === "FINISHED";
+  const live = match.status === "LIVE";
 
   async function handleTogglePredictions() {
     if (showPredictions) {
@@ -155,6 +168,13 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
             <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
               {match.scoreA} – {match.scoreB}
             </span>
+          ) : live ? (
+            <span
+              className="text-xs px-2.5 py-0.5 rounded-full font-medium"
+              style={{ backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }}
+            >
+              Locked
+            </span>
           ) : isLocked ? (
             <span
               className="text-xs px-2.5 py-0.5 rounded-full font-medium"
@@ -205,7 +225,13 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
       <div className="mt-1.5 flex items-center gap-3 text-xs flex-wrap" style={{ color: "var(--muted-foreground)" }}>
         <span>#{match.matchNumber}</span>
         <span>{formatKickoff(match.kickoff)}</span>
-        {!isLocked && !finished && (
+        {live && (
+          <span className="font-semibold animate-pulse" style={{ color: "#32BEBF" }}>● LIVE</span>
+        )}
+        {!isLocked && !finished && !live && countdown !== null && (
+          <span className="font-medium tabular-nums" style={{ color: "#FE7637" }}>⏱ {countdown}</span>
+        )}
+        {!isLocked && !finished && !live && countdown === null && (
           <span className="font-medium" style={{ color: "#32BEBF" }}>Open</span>
         )}
       </div>

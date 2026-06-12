@@ -48,8 +48,8 @@ export default async function DashboardPage() {
     include: {
       match: {
         include: {
-          teamA: { select: { name: true, flagEmoji: true } },
-          teamB: { select: { name: true, flagEmoji: true } },
+          teamA: { select: { name: true, flagEmoji: true, code: true } },
+          teamB: { select: { name: true, flagEmoji: true, code: true } },
         },
       },
     },
@@ -61,6 +61,25 @@ export default async function DashboardPage() {
   const exact = predictions.filter((p) => p.pointsEarned === 5).length;
   const correct = predictions.filter((p) => (p.pointsEarned ?? 0) >= 3).length;
   const accuracy = scored > 0 ? Math.round((correct / scored) * 100) : 0;
+
+  // Best match (highest points earned)
+  const bestMatch = predictions.reduce<(typeof predictions)[0] | undefined>(
+    (best, p) => ((p.pointsEarned ?? 0) > (best?.pointsEarned ?? 0) ? p : best),
+    undefined
+  );
+
+  // Current streak: consecutive correct results (pts >= 3) from most recent scored match
+  const scoredByDate = predictions
+    .filter((p) => p.pointsEarned !== null)
+    .sort(
+      (a, b) =>
+        new Date(b.match.kickoff).getTime() - new Date(a.match.kickoff).getTime()
+    );
+  let streak = 0;
+  for (const p of scoredByDate) {
+    if ((p.pointsEarned ?? 0) >= 3) streak++;
+    else break;
+  }
 
   const displayName = user?.displayName ?? user?.name ?? "Player";
 
@@ -83,13 +102,27 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
-          { label: "Total points", value: totalPoints, accent: true },
-          { label: "Predictions made", value: predictions.length, accent: false },
-          { label: "Exact scores", value: exact, accent: false },
-          { label: "Result accuracy", value: `${accuracy}%`, accent: false },
-        ].map(({ label, value, accent }) => (
+          { label: "Total points", value: totalPoints, accent: true, sub: null },
+          { label: "Predictions made", value: predictions.length, accent: false, sub: null },
+          { label: "Exact scores", value: exact, accent: false, sub: null },
+          { label: "Result accuracy", value: `${accuracy}%`, accent: false, sub: null },
+          {
+            label: "Current streak",
+            value: streak >= 3 ? `${streak} 🔥` : String(streak),
+            accent: streak >= 3,
+            sub: null,
+          },
+          {
+            label: "Best score",
+            value: `${bestMatch?.pointsEarned ?? 0} pts`,
+            accent: false,
+            sub: bestMatch
+              ? `${bestMatch.match.teamA?.code ?? bestMatch.match.teamALabel ?? "TBD"} vs ${bestMatch.match.teamB?.code ?? bestMatch.match.teamBLabel ?? "TBD"}`
+              : null,
+          },
+        ].map(({ label, value, accent, sub }) => (
           <div
             key={label}
             className="rounded-2xl p-4"
@@ -102,6 +135,11 @@ export default async function DashboardPage() {
               {value}
             </div>
             <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>{label}</div>
+            {sub && (
+              <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted-foreground)" }}>
+                {sub}
+              </div>
+            )}
           </div>
         ))}
       </div>

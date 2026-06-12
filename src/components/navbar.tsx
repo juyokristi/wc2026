@@ -15,9 +15,10 @@ interface NavbarProps {
     image?: string | null;
     displayName?: string | null;
   } | null;
+  isAdmin?: boolean;
 }
 
-export function Navbar({ user }: NavbarProps) {
+export function Navbar({ user, isAdmin }: NavbarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
@@ -54,6 +55,7 @@ export function Navbar({ user }: NavbarProps) {
               <>
                 <NavLink href="/predict">Predict</NavLink>
                 <NavLink href="/dashboard">My scores</NavLink>
+                {isAdmin && <NavLink href="/admin">Admin</NavLink>}
               </>
             )}
           </div>

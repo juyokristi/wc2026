@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Link from "next/link";
 
 export const revalidate = 60;
 
@@ -82,9 +83,12 @@ export default async function LeaderboardPage() {
         style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
       >
         {leaderboard.length === 0 ? (
-          <div className="py-16 text-center">
+          <div className="py-16 text-center space-y-2">
+            <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+              No scores yet
+            </p>
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              No scores yet — predictions will be scored after each match.
+              Predictions are scored after each match finishes. Check back soon.
             </p>
           </div>
         ) : (
@@ -92,15 +96,8 @@ export default async function LeaderboardPage() {
             const isMe = entry.user?.id === session?.user?.id;
             const displayName = entry.user?.displayName ?? entry.user?.name ?? "Unknown";
             const { label, medal } = rankDisplay(entry.rank);
-            return (
-              <div
-                key={entry.user?.id}
-                className="flex items-center gap-4 px-5 py-4"
-                style={{
-                  borderBottom: i < leaderboard.length - 1 ? "1px solid var(--border)" : "none",
-                  backgroundColor: isMe ? "rgba(150, 133, 228, 0.06)" : "transparent",
-                }}
-              >
+            const rowInner = (
+              <>
                 {/* Rank */}
                 <div className="w-8 shrink-0 text-center">
                   {medal ? (
@@ -143,6 +140,34 @@ export default async function LeaderboardPage() {
                   {entry.totalPoints}
                   <span className="text-xs font-normal ml-1" style={{ color: "var(--muted-foreground)" }}>pts</span>
                 </div>
+              </>
+            );
+
+            const rowStyle = {
+              borderBottom: i < leaderboard.length - 1 ? "1px solid var(--border)" : "none",
+              backgroundColor: isMe ? "rgba(150, 133, 228, 0.06)" : "transparent",
+            };
+
+            if (!isMe && entry.user?.id) {
+              return (
+                <Link
+                  key={entry.user.id}
+                  href={`/players/${entry.user.id}`}
+                  className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors"
+                  style={rowStyle}
+                >
+                  {rowInner}
+                </Link>
+              );
+            }
+
+            return (
+              <div
+                key={entry.user?.id}
+                className="flex items-center gap-4 px-5 py-4"
+                style={rowStyle}
+              >
+                {rowInner}
               </div>
             );
           })
