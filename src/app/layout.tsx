@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
 import { Navbar } from "@/components/navbar";
+import { Providers } from "@/components/providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,10 +24,12 @@ export default async function RootLayout({
   const session = await auth();
 
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <Navbar user={session?.user ?? null} />
-        <main className="flex-1">{children}</main>
+        <Providers>
+          <Navbar user={session?.user ?? null} />
+          <main className="flex-1">{children}</main>
+        </Providers>
       </body>
     </html>
   );

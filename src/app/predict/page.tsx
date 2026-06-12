@@ -1,8 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { MatchCard } from "@/components/match-card";
 import { MatchStage } from "@/generated/prisma/client";
+import { PredictView } from "@/components/predict-view";
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP: "Group Stage",
@@ -64,69 +64,34 @@ export default async function PredictPage() {
     };
   }
 
+  const serializedByGroup = Object.fromEntries(
+    Object.entries(byGroup).map(([k, v]) => [k, v.map(serializeMatch)])
+  );
+  const serializedByKnockoutStage = Object.fromEntries(
+    Object.entries(byKnockoutStage).map(([k, v]) => [k, v.map(serializeMatch)])
+  );
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
       <div>
         <p className="text-xs font-bold uppercase tracking-[2px] mb-2" style={{ color: "#9685E4" }}>
           WC2026
         </p>
-        <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "#101418" }}>
+        <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "var(--foreground)" }}>
           Predictions
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#8A9199" }}>
+        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
           Enter scores before kickoff. Predictions lock automatically when each match starts.
         </p>
       </div>
 
-      {/* Group Stage */}
-      <section>
-        <h2 className="text-lg font-semibold mb-5" style={{ color: "#101418" }}>Group Stage</h2>
-        <div className="space-y-8">
-          {Object.keys(byGroup).sort().map((group) => (
-            <div key={group}>
-              <div className="flex items-center gap-2 mb-3">
-                <span
-                  className="text-xs font-bold uppercase tracking-[1.5px] px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: "rgba(150,133,228,0.1)", color: "#9685E4" }}
-                >
-                  Group {group}
-                </span>
-              </div>
-              <div className="space-y-2">
-                {byGroup[group].map((m) => (
-                  <MatchCard
-                    key={m.id}
-                    match={serializeMatch(m)}
-                    prediction={predictionMap[m.id] ?? null}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Knockout Stages */}
-      {stageOrder.map((stage) => {
-        const stageMatches = byKnockoutStage[stage];
-        if (!stageMatches?.length) return null;
-        return (
-          <section key={stage}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#101418" }}>
-              {STAGE_LABELS[stage]}
-            </h2>
-            <div className="space-y-2">
-              {stageMatches.map((m) => (
-                <MatchCard
-                  key={m.id}
-                  match={serializeMatch(m)}
-                  prediction={predictionMap[m.id] ?? null}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      <PredictView
+        byGroup={serializedByGroup}
+        byKnockoutStage={serializedByKnockoutStage}
+        predictionMap={predictionMap}
+        stageOrder={stageOrder}
+        STAGE_LABELS={STAGE_LABELS}
+      />
     </div>
   );
 }

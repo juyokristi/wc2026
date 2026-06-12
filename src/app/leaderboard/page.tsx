@@ -44,10 +44,10 @@ export default async function LeaderboardPage() {
         <p className="text-xs font-bold uppercase tracking-[2px] mb-2" style={{ color: "#9685E4" }}>
           Rankings
         </p>
-        <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "#101418" }}>
+        <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "var(--foreground)" }}>
           Leaderboard
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#8A9199" }}>
+        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
           Updated after each match is scored.
         </p>
       </div>
@@ -55,11 +55,11 @@ export default async function LeaderboardPage() {
       {/* Table */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+        style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
       >
         {leaderboard.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-sm" style={{ color: "#8A9199" }}>
+            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
               No scores yet — predictions will be scored after each match.
             </p>
           </div>
@@ -73,7 +73,7 @@ export default async function LeaderboardPage() {
                 key={entry.user?.id}
                 className="flex items-center gap-4 px-5 py-4"
                 style={{
-                  borderBottom: i < leaderboard.length - 1 ? "1px solid #E4E6EA" : "none",
+                  borderBottom: i < leaderboard.length - 1 ? "1px solid var(--border)" : "none",
                   backgroundColor: isMe ? "rgba(150, 133, 228, 0.06)" : "transparent",
                 }}
               >
@@ -82,7 +82,7 @@ export default async function LeaderboardPage() {
                   {medal ? (
                     <span className="text-lg">{medal}</span>
                   ) : (
-                    <span className="text-sm font-semibold" style={{ color: "#8A9199" }}>
+                    <span className="text-sm font-semibold" style={{ color: "var(--muted-foreground)" }}>
                       {label}
                     </span>
                   )}
@@ -91,14 +91,14 @@ export default async function LeaderboardPage() {
                 {/* Avatar */}
                 <Avatar className="h-8 w-8 shrink-0">
                   <AvatarImage src={entry.user?.image ?? undefined} alt={displayName} />
-                  <AvatarFallback className="text-xs font-medium" style={{ backgroundColor: "#F3F4F6", color: "#3A3F47" }}>
+                  <AvatarFallback className="text-xs font-medium" style={{ backgroundColor: "var(--muted)", color: "var(--mid-foreground)" }}>
                     {displayName[0]?.toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
 
                 {/* Name */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: "#101418" }}>
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>
                     {displayName}
                     {isMe && (
                       <span className="ml-2 text-xs font-semibold" style={{ color: "#9685E4" }}>
@@ -106,7 +106,7 @@ export default async function LeaderboardPage() {
                       </span>
                     )}
                   </p>
-                  <p className="text-xs" style={{ color: "#8A9199" }}>
+                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                     {entry.predictionsScored} match{entry.predictionsScored !== 1 ? "es" : ""} scored
                   </p>
                 </div>
@@ -114,10 +114,10 @@ export default async function LeaderboardPage() {
                 {/* Points */}
                 <div
                   className="shrink-0 text-right text-base font-bold"
-                  style={{ color: isMe ? "#9685E4" : "#101418" }}
+                  style={{ color: isMe ? "#9685E4" : "var(--foreground)" }}
                 >
                   {entry.totalPoints}
-                  <span className="text-xs font-normal ml-1" style={{ color: "#8A9199" }}>pts</span>
+                  <span className="text-xs font-normal ml-1" style={{ color: "var(--muted-foreground)" }}>pts</span>
                 </div>
               </div>
             );

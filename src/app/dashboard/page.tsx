@@ -7,7 +7,7 @@ import Link from "next/link";
 function PointsBadge({ pts }: { pts: number | null }) {
   if (pts === null) {
     return (
-      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "#F3F4F6", color: "#8A9199" }}>
+      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }}>
         Pending
       </span>
     );
@@ -75,10 +75,10 @@ export default async function DashboardPage() {
           </AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-2xl font-bold" style={{ letterSpacing: "-0.5px", color: "#101418" }}>
+          <h1 className="text-2xl font-bold" style={{ letterSpacing: "-0.5px", color: "var(--foreground)" }}>
             {displayName}
           </h1>
-          <p className="text-sm" style={{ color: "#8A9199" }}>{user?.email}</p>
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>{user?.email}</p>
         </div>
       </div>
 
@@ -93,15 +93,15 @@ export default async function DashboardPage() {
           <div
             key={label}
             className="rounded-2xl p-4"
-            style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
           >
             <div
               className="text-2xl font-bold"
-              style={{ color: accent ? "#9685E4" : "#101418", letterSpacing: "-0.3px" }}
+              style={{ color: accent ? "#9685E4" : "var(--foreground)", letterSpacing: "-0.3px" }}
             >
               {value}
             </div>
-            <div className="text-xs mt-1" style={{ color: "#8A9199" }}>{label}</div>
+            <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>{label}</div>
           </div>
         ))}
       </div>
@@ -109,7 +109,7 @@ export default async function DashboardPage() {
       {/* Prediction history */}
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold" style={{ color: "#101418" }}>Your predictions</h2>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>Your predictions</h2>
           {predictions.length === 0 && (
             <Link href="/predict" className="text-sm font-medium" style={{ color: "#9685E4" }}>
               Make predictions →
@@ -120,9 +120,9 @@ export default async function DashboardPage() {
         {predictions.length === 0 ? (
           <div
             className="rounded-2xl py-12 text-center"
-            style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
           >
-            <p className="text-sm" style={{ color: "#8A9199" }}>
+            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
               No predictions yet.{" "}
               <Link href="/predict" className="font-medium" style={{ color: "#9685E4" }}>
                 Head to Predict
@@ -133,7 +133,7 @@ export default async function DashboardPage() {
         ) : (
           <div
             className="rounded-2xl overflow-hidden"
-            style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
           >
             {predictions.map((p, i) => {
               const teamA = p.match.teamA?.name ?? p.match.teamALabel ?? "TBD";
@@ -145,21 +145,21 @@ export default async function DashboardPage() {
                 <div
                   key={p.id}
                   className="flex items-center justify-between gap-3 px-5 py-3"
-                  style={{ borderBottom: i < predictions.length - 1 ? "1px solid #E4E6EA" : "none" }}
+                  style={{ borderBottom: i < predictions.length - 1 ? "1px solid var(--border)" : "none" }}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="text-base">{flagA}</span>
-                    <span className="text-sm truncate" style={{ color: "#101418" }}>{teamA}</span>
-                    <span className="text-xs" style={{ color: "#8A9199" }}>vs</span>
-                    <span className="text-sm truncate" style={{ color: "#101418" }}>{teamB}</span>
+                    <span className="text-sm truncate" style={{ color: "var(--foreground)" }}>{teamA}</span>
+                    <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>vs</span>
+                    <span className="text-sm truncate" style={{ color: "var(--foreground)" }}>{teamB}</span>
                     <span className="text-base">{flagB}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm tabular-nums" style={{ color: "#3A3F47" }}>
+                    <span className="text-sm tabular-nums" style={{ color: "var(--mid-foreground)" }}>
                       {p.predictedA}–{p.predictedB}
                     </span>
                     {finished && p.match.scoreA !== null && (
-                      <span className="text-xs font-medium" style={{ color: "#8A9199" }}>
+                      <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
                         ({p.match.scoreA}–{p.match.scoreB})
                       </span>
                     )}

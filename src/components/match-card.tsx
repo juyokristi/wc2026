@@ -4,6 +4,14 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+interface PredictionEntry {
+  userName: string;
+  userImage: string | null;
+  predictedA: number;
+  predictedB: number;
+  pointsEarned: number | null;
+}
+
 interface MatchCardProps {
   match: {
     id: string;
@@ -62,6 +70,9 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [showPredictions, setShowPredictions] = useState(false);
+  const [predictions, setPredictions] = useState<PredictionEntry[] | null>(null);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
 
   useEffect(() => {
     const check = () => setIsLocked(new Date(match.kickoff) <= new Date());
@@ -75,6 +86,22 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
   const teamAFlag = match.teamA?.flagEmoji ?? "🏳";
   const teamBFlag = match.teamB?.flagEmoji ?? "🏳";
   const finished = match.status === "FINISHED";
+
+  async function handleTogglePredictions() {
+    if (showPredictions) {
+      setShowPredictions(false);
+      return;
+    }
+    setShowPredictions(true);
+    if (predictions !== null) return; // already loaded
+    setLoadingPredictions(true);
+    try {
+      const res = await fetch(`/api/matches/${match.id}/predictions`);
+      if (res.ok) setPredictions(await res.json());
+    } finally {
+      setLoadingPredictions(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,28 +136,28 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
   return (
     <div
       className="rounded-2xl px-4 py-3 transition-shadow hover:shadow-sm"
-      style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+      style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
         {/* Teams */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="text-lg">{teamAFlag}</span>
-          <span className="text-sm font-medium truncate" style={{ color: "#101418" }}>{teamAName}</span>
-          <span className="text-xs px-1" style={{ color: "#8A9199" }}>vs</span>
-          <span className="text-sm font-medium truncate" style={{ color: "#101418" }}>{teamBName}</span>
+          <span className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{teamAName}</span>
+          <span className="text-xs px-1" style={{ color: "var(--muted-foreground)" }}>vs</span>
+          <span className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{teamBName}</span>
           <span className="text-lg">{teamBFlag}</span>
         </div>
 
         {/* Score / input area */}
         <div className="flex items-center gap-2 shrink-0">
           {finished ? (
-            <span className="text-base font-bold tabular-nums" style={{ color: "#101418" }}>
+            <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
               {match.scoreA} – {match.scoreB}
             </span>
           ) : isLocked ? (
             <span
               className="text-xs px-2.5 py-0.5 rounded-full font-medium"
-              style={{ backgroundColor: "#F3F4F6", color: "#8A9199" }}
+              style={{ backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }}
             >
               Locked
             </span>
@@ -146,7 +173,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                 style={{ borderRadius: "8px" }}
                 disabled={saving}
               />
-              <span className="text-xs" style={{ color: "#8A9199" }}>–</span>
+              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>–</span>
               <Input
                 type="number"
                 min={0}
@@ -166,7 +193,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
           {prediction?.pointsEarned !== undefined && <PointsBadge pts={prediction.pointsEarned} />}
 
           {prediction && !finished && !isLocked && prediction.predictedA !== undefined && (
-            <span className="text-xs tabular-nums" style={{ color: "#8A9199" }}>
+            <span className="text-xs tabular-nums" style={{ color: "var(--muted-foreground)" }}>
               {prediction.predictedA}–{prediction.predictedB}
             </span>
           )}
@@ -174,7 +201,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
       </div>
 
       {/* Meta */}
-      <div className="mt-1.5 flex items-center gap-3 text-xs flex-wrap" style={{ color: "#8A9199" }}>
+      <div className="mt-1.5 flex items-center gap-3 text-xs flex-wrap" style={{ color: "var(--muted-foreground)" }}>
         <span>#{match.matchNumber}</span>
         <span>{formatKickoff(match.kickoff)}</span>
         <span>{match.venue}</span>
@@ -184,6 +211,39 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
       </div>
 
       {error && <p className="mt-1 text-xs" style={{ color: "#FE7637" }}>{error}</p>}
+
+      {isLocked && (
+        <div className="mt-2">
+          <button
+            className="text-xs font-medium"
+            style={{ color: "var(--muted-foreground)" }}
+            onClick={handleTogglePredictions}
+          >
+            {showPredictions ? "Hide predictions" : "Community predictions"}
+          </button>
+          {showPredictions && (
+            <div className="mt-2 space-y-1">
+              {loadingPredictions ? (
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Loading…</p>
+              ) : predictions?.length ? (
+                predictions.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span style={{ color: "var(--muted-foreground)" }}>{p.userName}</span>
+                    <span className="tabular-nums font-medium" style={{ color: "var(--foreground)" }}>
+                      {p.predictedA}–{p.predictedB}
+                      {p.pointsEarned !== null && (
+                        <span className="ml-1.5" style={{ color: "#9685E4" }}>{p.pointsEarned}pts</span>
+                      )}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>No predictions yet.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

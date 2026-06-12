@@ -45,7 +45,7 @@ export function ProfileForm({ currentDisplayName }: ProfileFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <label className="text-sm font-semibold" style={{ color: "#101418" }}>Display name</label>
+        <label className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Display name</label>
         <Input
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -53,7 +53,7 @@ export function ProfileForm({ currentDisplayName }: ProfileFormProps) {
           maxLength={50}
           disabled={saving}
         />
-        <p className="text-xs" style={{ color: "#8A9199" }}>
+        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
           This name appears on the leaderboard instead of your Google name.
         </p>
       </div>

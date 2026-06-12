@@ -23,14 +23,14 @@ export default async function ProfilePage() {
         <p className="text-xs font-bold uppercase tracking-[2px] mb-2" style={{ color: "#9685E4" }}>
           Account
         </p>
-        <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "#101418" }}>
+        <h1 className="text-3xl font-bold" style={{ letterSpacing: "-0.5px", color: "var(--foreground)" }}>
           Your Profile
         </h1>
       </div>
 
       <div
         className="rounded-2xl p-6 space-y-6"
-        style={{ border: "1px solid #E4E6EA", backgroundColor: "#FFFFFF" }}
+        style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
       >
         <div className="flex items-center gap-4">
           <Avatar className="h-14 w-14">
@@ -43,12 +43,12 @@ export default async function ProfilePage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold" style={{ color: "#101418" }}>{user.name}</p>
-            <p className="text-sm" style={{ color: "#8A9199" }}>{user.email}</p>
+            <p className="font-semibold" style={{ color: "var(--foreground)" }}>{user.name}</p>
+            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>{user.email}</p>
           </div>
         </div>
 
-        <div className="h-px" style={{ backgroundColor: "#E4E6EA" }} />
+        <div className="h-px" style={{ backgroundColor: "var(--border)" }} />
 
         <ProfileForm currentDisplayName={displayName} />
       </div>
