@@ -15,13 +15,17 @@ export default async function HomePage() {
     >
       <div className="max-w-lg text-center space-y-8">
         {/* WC2026 logo */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://upload.wikimedia.org/wikipedia/commons/e/e5/2026_FIFA_World_Cup_emblem_%28without_trophy%29.svg"
-          alt="FIFA World Cup 2026"
-          className="mx-auto"
-          style={{ height: "96px", width: "auto" }}
-        />
+        <div
+          className="mx-auto inline-flex items-center justify-center rounded-2xl"
+          style={{ backgroundColor: "#FFFFFF", padding: "14px 22px" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/wc2026-logo.svg"
+            alt="FIFA World Cup 2026"
+            style={{ height: "80px", width: "auto", display: "block" }}
+          />
+        </div>
 
         {/* Eyebrow */}
         <p
