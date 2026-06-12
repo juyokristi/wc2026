@@ -259,30 +259,49 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                     const draw = predictions.filter((p) => p.predictedA === p.predictedB).length;
                     const away = predictions.filter((p) => p.predictedA < p.predictedB).length;
                     const total = predictions.length;
+                    const homePct = Math.round((home / total) * 100);
+                    const drawPct = Math.round((draw / total) * 100);
+                    const awayPct = Math.round((away / total) * 100);
+                    const aCode = match.teamA?.code ?? teamAName.split(" ")[0];
+                    const bCode = match.teamB?.code ?? teamBName.split(" ")[0];
                     return (
-                      <div className="mb-3">
-                        <div className="flex rounded-full overflow-hidden h-1.5 mb-1.5" style={{ gap: "2px" }}>
-                          {home > 0 && <div style={{ width: `${(home / total) * 100}%`, backgroundColor: "#9685E4", borderRadius: "9999px" }} />}
-                          {draw > 0 && <div style={{ width: `${(draw / total) * 100}%`, backgroundColor: "#32BEBF", borderRadius: "9999px" }} />}
-                          {away > 0 && <div style={{ width: `${(away / total) * 100}%`, backgroundColor: "#FE7637", borderRadius: "9999px" }} />}
-                        </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#9685E4" }} />
-                            <span style={{ color: "#9685E4" }}>{Math.round((home / total) * 100)}%</span>
-                            <span style={{ color: "var(--muted-foreground)" }}>{match.teamA?.code ?? teamAName.split(" ")[0]}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#32BEBF" }} />
-                            <span style={{ color: "#32BEBF" }}>{Math.round((draw / total) * 100)}%</span>
-                            <span style={{ color: "var(--muted-foreground)" }}>Draw</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#FE7637" }} />
-                            <span style={{ color: "#FE7637" }}>{Math.round((away / total) * 100)}%</span>
-                            <span style={{ color: "var(--muted-foreground)" }}>{match.teamB?.code ?? teamBName.split(" ")[0]}</span>
-                          </span>
-                        </div>
+                      <div className="flex rounded-xl overflow-hidden mb-3" style={{ height: "28px", gap: "2px" }}>
+                        {home > 0 && (
+                          <div
+                            className="flex items-center justify-center overflow-hidden shrink-0"
+                            style={{ width: `${(home / total) * 100}%`, backgroundColor: "#9685E4" }}
+                          >
+                            {homePct >= 15 && (
+                              <span className="text-xs font-semibold truncate px-2" style={{ color: "rgba(255,255,255,0.9)" }}>
+                                {homePct}% {aCode}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {draw > 0 && (
+                          <div
+                            className="flex items-center justify-center overflow-hidden shrink-0"
+                            style={{ width: `${(draw / total) * 100}%`, backgroundColor: "#32BEBF" }}
+                          >
+                            {drawPct >= 15 && (
+                              <span className="text-xs font-semibold truncate px-2" style={{ color: "rgba(255,255,255,0.9)" }}>
+                                {drawPct}% Draw
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {away > 0 && (
+                          <div
+                            className="flex items-center justify-center overflow-hidden shrink-0"
+                            style={{ width: `${(away / total) * 100}%`, backgroundColor: "#FE7637" }}
+                          >
+                            {awayPct >= 15 && (
+                              <span className="text-xs font-semibold truncate px-2" style={{ color: "rgba(255,255,255,0.9)" }}>
+                                {awayPct}% {bCode}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
