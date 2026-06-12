@@ -38,13 +38,14 @@ interface MatchCardProps {
 }
 
 function formatKickoff(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("en-GB", {
+    timeZone: "Europe/Paris",
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
+  }) + " CEST";
 }
 
 function PointsBadge({ pts }: { pts: number | null }) {
