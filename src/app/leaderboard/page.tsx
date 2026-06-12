@@ -52,6 +52,30 @@ export default async function LeaderboardPage() {
         </p>
       </div>
 
+      {/* Scoring rules */}
+      <div
+        className="rounded-2xl p-5 mb-6 space-y-2"
+        style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+      >
+        <p className="text-xs font-bold uppercase tracking-[2px] mb-3" style={{ color: "#9685E4" }}>
+          How points work
+        </p>
+        {[
+          { label: "Exact score", pts: "5 pts ⭐" },
+          { label: "Correct result + same goal margin", pts: "4 pts" },
+          { label: "Correct result only", pts: "3 pts" },
+          { label: "Wrong result", pts: "0 pts" },
+        ].map(({ label, pts }, i, arr) => (
+          <div key={label}>
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: "var(--foreground)" }}>{label}</span>
+              <span className="font-semibold" style={{ color: "#9685E4" }}>{pts}</span>
+            </div>
+            {i < arr.length - 1 && <div className="h-px mt-2" style={{ backgroundColor: "var(--border)" }} />}
+          </div>
+        ))}
+      </div>
+
       {/* Table */}
       <div
         className="rounded-2xl overflow-hidden"
