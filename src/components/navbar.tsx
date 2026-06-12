@@ -16,9 +16,10 @@ interface NavbarProps {
     displayName?: string | null;
   } | null;
   isAdmin?: boolean;
+  openCount?: number;
 }
 
-export function Navbar({ user, isAdmin }: NavbarProps) {
+export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
@@ -53,7 +54,17 @@ export function Navbar({ user, isAdmin }: NavbarProps) {
             <NavLink href="/leaderboard">Leaderboard</NavLink>
             {user && (
               <>
-                <NavLink href="/predict">Predict</NavLink>
+                <NavLink href="/predict">
+                  Predict
+                  {(openCount ?? 0) > 0 && (
+                    <span
+                      className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ backgroundColor: "rgba(150,133,228,0.25)", color: "#9685E4" }}
+                    >
+                      {openCount}
+                    </span>
+                  )}
+                </NavLink>
                 <NavLink href="/dashboard">My scores</NavLink>
                 {isAdmin && <NavLink href="/admin">Admin</NavLink>}
               </>

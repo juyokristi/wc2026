@@ -81,6 +81,22 @@ export default async function DashboardPage() {
     else break;
   }
 
+  // Points per matchday chart data
+  const dayMap = new Map<string, { label: string; pts: number }>();
+  for (const p of predictions) {
+    if (p.pointsEarned === null) continue;
+    const date = new Date(p.match.kickoff);
+    const key = date.toISOString().split("T")[0];
+    const label = date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const existing = dayMap.get(key);
+    if (existing) existing.pts += p.pointsEarned;
+    else dayMap.set(key, { label, pts: p.pointsEarned });
+  }
+  const chartData = [...dayMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([, v]) => v);
+  const maxPts = Math.max(...chartData.map((d) => d.pts), 1);
+
   const displayName = user?.displayName ?? user?.name ?? "Player";
 
   return (
@@ -143,6 +159,36 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Points by matchday chart */}
+      {chartData.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+            Points by matchday
+          </h2>
+          <div
+            className="rounded-2xl p-5 space-y-2.5"
+            style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+          >
+            {chartData.map(({ label, pts }) => (
+              <div key={label} className="flex items-center gap-3">
+                <span className="text-xs w-14 text-right shrink-0 tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+                  {label}
+                </span>
+                <div className="flex-1 h-5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--muted)" }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${(pts / maxPts) * 100}%`, backgroundColor: "#9685E4", opacity: 0.8 }}
+                  />
+                </div>
+                <span className="text-xs w-8 shrink-0 font-semibold tabular-nums" style={{ color: "var(--foreground)" }}>
+                  {pts}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Prediction history */}
       <div>

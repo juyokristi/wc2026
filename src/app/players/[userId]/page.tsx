@@ -103,6 +103,12 @@ export default async function PlayerPage({ params }: Props) {
 
   const displayName = targetUser.displayName ?? targetUser.name ?? "Player";
 
+  const sharedScored = theirPredictions.filter(
+    (p) => p.pointsEarned !== null && myPredMap[p.matchId]?.pointsEarned != null
+  );
+  const theirTotalPts = sharedScored.reduce((s, p) => s + (p.pointsEarned ?? 0), 0);
+  const myTotalPts = sharedScored.reduce((s, p) => s + (myPredMap[p.matchId]?.pointsEarned ?? 0), 0);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
       {/* Profile header */}
@@ -131,6 +137,38 @@ export default async function PlayerPage({ params }: Props) {
           </p>
         </div>
       </div>
+
+      {/* H2H summary */}
+      {sharedScored.length > 0 && (
+        <div
+          className="rounded-2xl p-5"
+          style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+        >
+          <div className="flex items-center">
+            <div className="flex-1 text-center">
+              <div className="text-3xl font-bold" style={{ color: "#9685E4", letterSpacing: "-0.5px" }}>
+                {myTotalPts}
+              </div>
+              <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>You</div>
+            </div>
+            <div className="px-6 text-sm font-medium" style={{ color: "var(--muted-foreground)" }}>vs</div>
+            <div className="flex-1 text-center">
+              <div className="text-3xl font-bold" style={{ color: "var(--foreground)", letterSpacing: "-0.5px" }}>
+                {theirTotalPts}
+              </div>
+              <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>{displayName}</div>
+            </div>
+          </div>
+          <p className="mt-3 text-center text-xs" style={{ color: "var(--muted-foreground)" }}>
+            {myTotalPts > theirTotalPts
+              ? `You're ahead by ${myTotalPts - theirTotalPts} pts`
+              : theirTotalPts > myTotalPts
+              ? `${displayName} is ahead by ${theirTotalPts - myTotalPts} pts`
+              : "Tied"}{" "}
+            · {sharedScored.length} match{sharedScored.length !== 1 ? "es" : ""} scored
+          </p>
+        </div>
+      )}
 
       {/* Predictions comparison table */}
       <div>

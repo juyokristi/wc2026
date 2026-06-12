@@ -56,7 +56,7 @@ export function PredictView({
   stageOrder,
   STAGE_LABELS,
 }: PredictViewProps) {
-  const [view, setView] = useState<"group" | "day">("day");
+  const [view, setView] = useState<"group" | "day" | "open">("day");
 
   const allMatches: SerializedMatch[] = [
     ...Object.values(byGroup).flat(),
@@ -65,11 +65,18 @@ export function PredictView({
 
   const byDay = groupByDay(allMatches);
 
+  const openMatches = allMatches.filter(
+    (m) => m.status === "SCHEDULED" && new Date(m.kickoff) > new Date() && !predictionMap[m.id]
+  );
+  const openByDay = groupByDay(openMatches);
+
+  const LABELS: Record<string, string> = { group: "By group", day: "By day", open: "Open" };
+
   return (
     <div className="space-y-10">
       {/* Toggle */}
       <div className="flex gap-2">
-        {(["group", "day"] as const).map((v) => (
+        {(["group", "day", "open"] as const).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
@@ -80,7 +87,12 @@ export function PredictView({
               border: `1px solid ${view === v ? "rgba(150,133,228,0.3)" : "var(--border)"}`,
             }}
           >
-            {v === "group" ? "By group" : "By day"}
+            {LABELS[v]}
+            {v === "open" && openMatches.length > 0 && (
+              <span className="ml-1.5 font-bold" style={{ color: view === v ? "#9685E4" : "var(--muted-foreground)" }}>
+                {openMatches.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -144,7 +156,7 @@ export function PredictView({
             );
           })}
         </>
-      ) : (
+      ) : view === "day" ? (
         <>
           {Object.keys(byDay).map((day) => (
             <section key={day}>
@@ -165,6 +177,39 @@ export function PredictView({
               </div>
             </section>
           ))}
+        </>
+      ) : (
+        <>
+          {openMatches.length === 0 ? (
+            <div
+              className="rounded-2xl py-14 text-center"
+              style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+            >
+              <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                All caught up
+              </p>
+              <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+                You've predicted every open match. Check back before the next kickoff.
+              </p>
+            </div>
+          ) : (
+            Object.keys(openByDay).map((day) => (
+              <section key={day}>
+                <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+                  {day}
+                </h2>
+                <div className="space-y-2">
+                  {openByDay[day].map((m) => (
+                    <MatchCard
+                      key={m.id}
+                      match={m}
+                      prediction={predictionMap[m.id] ?? null}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
         </>
       )}
     </div>

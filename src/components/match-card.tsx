@@ -186,23 +186,25 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
             <form onSubmit={handleSubmit} className="flex items-center gap-1.5">
               <Input
                 type="number"
+                inputMode="numeric"
                 min={0}
                 max={99}
                 value={scoreA}
                 onChange={(e) => setScoreA(e.target.value)}
-                className="w-12 text-center px-1 h-8 text-sm"
-                style={{ borderRadius: "8px" }}
+                className="w-12 text-center px-1 h-9 sm:h-8"
+                style={{ borderRadius: "8px", fontSize: "16px" }}
                 disabled={saving}
               />
               <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>–</span>
               <Input
                 type="number"
+                inputMode="numeric"
                 min={0}
                 max={99}
                 value={scoreB}
                 onChange={(e) => setScoreB(e.target.value)}
-                className="w-12 text-center px-1 h-8 text-sm"
-                style={{ borderRadius: "8px" }}
+                className="w-12 text-center px-1 h-9 sm:h-8"
+                style={{ borderRadius: "8px", fontSize: "16px" }}
                 disabled={saving}
               />
               <Button type="submit" size="sm" variant="accent" disabled={saving}>

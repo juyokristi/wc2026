@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { LeaderboardScroller } from "@/components/leaderboard-scroller";
 
 export const revalidate = 60;
 
@@ -40,6 +41,7 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
+      <LeaderboardScroller />
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs font-bold uppercase tracking-[2px] mb-2" style={{ color: "#9685E4" }}>
@@ -163,6 +165,7 @@ export default async function LeaderboardPage() {
 
             return (
               <div
+                id="me-row"
                 key={entry.user?.id}
                 className="flex items-center gap-4 px-5 py-4"
                 style={rowStyle}
