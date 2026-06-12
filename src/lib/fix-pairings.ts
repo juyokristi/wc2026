@@ -14,6 +14,7 @@ interface FdMatchFull {
 export interface FixPairingsResult {
   pairingsFixed: number;
   kickoffsUpdated: number;
+  predictionsCleared: number;
   skipped: number;
   changes: string[];
 }
@@ -61,9 +62,10 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
   const changes: string[] = [];
   let pairingsFixed = 0;
   let kickoffsUpdated = 0;
+  let predictionsCleared = 0;
   let skipped = 0;
 
-  // Pass 1: match by team pair — mark these as correct and fix kickoffs
+  // Pass 1: match by team pair — mark correct, fix kickoffs only (teams are right, no predictions deleted)
   for (const fd of groupApiMatches) {
     const homeTla = fd.homeTeam?.tla?.toUpperCase();
     const awayTla = fd.awayTeam?.tla?.toUpperCase();
@@ -85,7 +87,7 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
     }
   }
 
-  // Pass 2: for API matches not found by team pair, match by group + closest date
+  // Pass 2: API matches not found by team pair → match by group + closest date, reassign teams
   for (const fd of groupApiMatches) {
     const homeTla = fd.homeTeam?.tla?.toUpperCase();
     const awayTla = fd.awayTeam?.tla?.toUpperCase();
@@ -104,11 +106,9 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
 
     // Extract group letter: "GROUP_H" → "H", or just "H"
     const rawGroup = fd.group ?? "";
-    const groupLetter = rawGroup.startsWith("GROUP_")
-      ? rawGroup.slice(6)
-      : rawGroup;
+    const groupLetter = rawGroup.startsWith("GROUP_") ? rawGroup.slice(6) : rawGroup;
 
-    // Find the DB match in same group, closest unmatched kickoff within 12h
+    // Find DB match in same group, closest unmatched kickoff within 12h
     const apiDate = new Date(fd.utcDate);
     const candidates = dbGroupMatches.filter(
       (m) =>
@@ -118,7 +118,9 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
     );
 
     if (candidates.length === 0) {
-      changes.push(`No candidate: ${homeTla} vs ${awayTla} (group ${groupLetter}, ${apiDate.toISOString().slice(0, 16)})`);
+      changes.push(
+        `No candidate: ${homeTla} vs ${awayTla} (group ${groupLetter}, ${apiDate.toISOString().slice(0, 16)})`
+      );
       skipped++;
       continue;
     }
@@ -129,8 +131,25 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
         Math.abs(b.kickoff.getTime() - apiDate.getTime())
     );
     const target = candidates[0];
-    matchedDbIds.add(target.id);
 
+    // Teams are changing on this match — any existing predictions were made against
+    // the wrong teams, so clear them before reassigning.
+    const teamsChanging =
+      target.teamA?.id !== homeTeam.id || target.teamB?.id !== awayTeam.id;
+
+    if (teamsChanging) {
+      const deleted = await prisma.prediction.deleteMany({
+        where: { matchId: target.id },
+      });
+      if (deleted.count > 0) {
+        predictionsCleared += deleted.count;
+        changes.push(
+          `  → ${deleted.count} prediction(s) cleared (were for wrong teams)`
+        );
+      }
+    }
+
+    matchedDbIds.add(target.id);
     const oldA = target.teamA?.code ?? "?";
     const oldB = target.teamB?.code ?? "?";
     await prisma.match.update({
@@ -141,9 +160,11 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
         kickoff: apiDate,
       },
     });
-    changes.push(`Pairing fixed: #${target.matchNumber} ${oldA}+${oldB} → ${homeTla} vs ${awayTla} (${apiDate.toISOString().slice(0, 16)})`);
+    changes.push(
+      `Pairing fixed: #${target.matchNumber} ${oldA} vs ${oldB} → ${homeTla} vs ${awayTla} (${apiDate.toISOString().slice(0, 16)})`
+    );
     pairingsFixed++;
   }
 
-  return { pairingsFixed, kickoffsUpdated, skipped, changes };
+  return { pairingsFixed, kickoffsUpdated, predictionsCleared, skipped, changes };
 }

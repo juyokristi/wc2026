@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 interface FixResult {
   pairingsFixed: number;
   kickoffsUpdated: number;
+  predictionsCleared: number;
   skipped: number;
   changes: string[];
 }
@@ -50,7 +51,9 @@ export function AdminFixPairingsButton() {
           }}
         >
           <p className="text-sm font-medium" style={{ color: "#32BEBF" }}>
-            Done — {result.pairingsFixed} pairings fixed, {result.kickoffsUpdated} kickoffs updated, {result.skipped} skipped
+            Done — {result.pairingsFixed} pairings fixed, {result.kickoffsUpdated} kickoffs updated
+            {result.predictionsCleared > 0 && `, ${result.predictionsCleared} stale prediction(s) cleared`}
+            {result.skipped > 0 && `, ${result.skipped} skipped`}
           </p>
           {result.changes.length > 0 && (
             <button
