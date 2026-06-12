@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 export const revalidate = 60;
 
 type TeamRecord = {
-  id: string; name: string; flagEmoji: string;
+  id: string; name: string; code: string; flagEmoji: string;
   mp: number; w: number; d: number; l: number; gf: number; ga: number;
 };
 
@@ -19,8 +19,8 @@ export default async function StandingsPage() {
   const matches = await prisma.match.findMany({
     where: { stage: "GROUP" },
     include: {
-      teamA: { select: { id: true, name: true, flagEmoji: true } },
-      teamB: { select: { id: true, name: true, flagEmoji: true } },
+      teamA: { select: { id: true, name: true, code: true, flagEmoji: true } },
+      teamB: { select: { id: true, name: true, code: true, flagEmoji: true } },
     },
   });
 
@@ -30,7 +30,7 @@ export default async function StandingsPage() {
     const g = m.group ?? "?";
     if (!groups[g]) groups[g] = {};
 
-    const add = (t: { id: string; name: string; flagEmoji: string }) => {
+    const add = (t: { id: string; name: string; code: string; flagEmoji: string }) => {
       if (!groups[g][t.id]) groups[g][t.id] = { ...t, mp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
     };
     if (m.teamA) add(m.teamA);
@@ -115,7 +115,7 @@ export default async function StandingsPage() {
                           )}
                           {i === 3 && <div className="w-1 shrink-0" />}
                           <span className="text-sm shrink-0">{team.flagEmoji}</span>
-                          <span className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{team.name}</span>
+                          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{team.code}</span>
                         </div>
                       </td>
                       <td className="px-1.5 py-2 text-center text-xs tabular-nums" style={{ color: "var(--muted-foreground)" }}>{team.mp}</td>
