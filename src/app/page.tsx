@@ -14,6 +14,15 @@ export default async function HomePage() {
       }}
     >
       <div className="max-w-lg text-center space-y-8">
+        {/* WC2026 logo */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://upload.wikimedia.org/wikipedia/commons/e/e5/2026_FIFA_World_Cup_emblem_%28without_trophy%29.svg"
+          alt="FIFA World Cup 2026"
+          className="mx-auto"
+          style={{ height: "96px", width: "auto" }}
+        />
+
         {/* Eyebrow */}
         <p
           className="text-xs font-bold uppercase tracking-[2px]"
