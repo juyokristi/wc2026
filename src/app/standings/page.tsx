@@ -86,7 +86,7 @@ export default async function StandingsPage() {
                 Group {group}
               </span>
             </div>
-            <table className="w-full border-collapse">
+            <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
                   <th className="px-4 py-1.5 text-left text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>Team</th>
@@ -105,8 +105,8 @@ export default async function StandingsPage() {
                       key={team.id}
                       style={{ borderBottom: i < teams.length - 1 ? "1px solid var(--border)" : "none" }}
                     >
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-1.5">
+                      <td className="px-4 py-2 overflow-hidden">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           {i < 2 && (
                             <div className="w-1 h-3.5 rounded-full shrink-0" style={{ backgroundColor: "#9685E4" }} />
                           )}
@@ -114,7 +114,7 @@ export default async function StandingsPage() {
                             <div className="w-1 h-3.5 rounded-full shrink-0" style={{ backgroundColor: "rgba(150,133,228,0.3)" }} />
                           )}
                           {i === 3 && <div className="w-1 shrink-0" />}
-                          <span className="text-sm">{team.flagEmoji}</span>
+                          <span className="text-sm shrink-0">{team.flagEmoji}</span>
                           <span className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>{team.name}</span>
                         </div>
                       </td>

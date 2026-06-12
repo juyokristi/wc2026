@@ -266,10 +266,22 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                           {draw > 0 && <div style={{ width: `${(draw / total) * 100}%`, backgroundColor: "#32BEBF", borderRadius: "9999px" }} />}
                           {away > 0 && <div style={{ width: `${(away / total) * 100}%`, backgroundColor: "#FE7637", borderRadius: "9999px" }} />}
                         </div>
-                        <div className="flex gap-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
-                          <span style={{ color: "#9685E4" }}>{Math.round((home / total) * 100)}% {teamAName.split(" ")[0]}</span>
-                          <span style={{ color: "#32BEBF" }}>{Math.round((draw / total) * 100)}% Draw</span>
-                          <span style={{ color: "#FE7637" }}>{Math.round((away / total) * 100)}% {teamBName.split(" ").at(-1)}</span>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#9685E4" }} />
+                            <span style={{ color: "#9685E4" }}>{Math.round((home / total) * 100)}%</span>
+                            <span style={{ color: "var(--muted-foreground)" }}>{match.teamA?.code ?? teamAName.split(" ")[0]}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#32BEBF" }} />
+                            <span style={{ color: "#32BEBF" }}>{Math.round((draw / total) * 100)}%</span>
+                            <span style={{ color: "var(--muted-foreground)" }}>Draw</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "#FE7637" }} />
+                            <span style={{ color: "#FE7637" }}>{Math.round((away / total) * 100)}%</span>
+                            <span style={{ color: "var(--muted-foreground)" }}>{match.teamB?.code ?? teamBName.split(" ")[0]}</span>
+                          </span>
                         </div>
                       </div>
                     );
