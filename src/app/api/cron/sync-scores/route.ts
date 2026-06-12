@@ -7,6 +7,7 @@ const FD_BASE = "https://api.football-data.org/v4";
 interface FdMatch {
   utcDate: string;
   status: string;
+  venue: string | null;
   homeTeam: { tla: string };
   awayTeam: { tla: string };
   score: { fullTime: { home: number | null; away: number | null } };
@@ -70,6 +71,8 @@ export async function GET(req: NextRequest) {
     const teamAIsHome = m.teamA!.code.toUpperCase() === homeTla;
     const correctKickoff = new Date(fd.utcDate);
 
+    const venueUpdate = fd.venue ? { venue: fd.venue } : {};
+
     if (fd.status === "FINISHED") {
       const homeScore = fd.score?.fullTime?.home;
       const awayScore = fd.score?.fullTime?.away;
@@ -81,7 +84,7 @@ export async function GET(req: NextRequest) {
 
       await prisma.match.update({
         where: { id: m.id },
-        data: { scoreA, scoreB, status: "FINISHED", kickoff: correctKickoff },
+        data: { scoreA, scoreB, status: "FINISHED", kickoff: correctKickoff, ...venueUpdate },
       });
 
       const predictions = await prisma.prediction.findMany({ where: { matchId: m.id } });
@@ -95,14 +98,14 @@ export async function GET(req: NextRequest) {
       );
       scoresUpdated++;
     } else {
-      // Just fix the kickoff time if it differs
       const storedKickoff = m.kickoff.getTime();
-      if (Math.abs(storedKickoff - correctKickoff.getTime()) > 60_000) {
+      const kickoffChanged = Math.abs(storedKickoff - correctKickoff.getTime()) > 60_000;
+      if (kickoffChanged || fd.venue) {
         await prisma.match.update({
           where: { id: m.id },
-          data: { kickoff: correctKickoff },
+          data: { kickoff: correctKickoff, ...venueUpdate },
         });
-        kickoffsFixed++;
+        if (kickoffChanged) kickoffsFixed++;
       }
     }
   }
