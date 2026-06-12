@@ -66,6 +66,15 @@ export default async function DashboardPage() {
   const myRank = myRankIdx >= 0 ? myRankIdx + 1 : null;
   const totalPlayers = allRanked.length;
 
+  const fieldTotals = allRanked.map((r) => r._sum.pointsEarned ?? 0);
+  const fieldAvg = fieldTotals.length > 0
+    ? Math.round(fieldTotals.reduce((a, b) => a + b, 0) / fieldTotals.length)
+    : 0;
+  const betterThan = fieldTotals.filter((t) => t < totalPoints).length;
+  const topPct = fieldTotals.length > 1
+    ? Math.round((betterThan / fieldTotals.length) * 100)
+    : fieldTotals.length === 1 ? 100 : null;
+
   const totalPoints = predictions.reduce((sum, p) => sum + (p.pointsEarned ?? 0), 0);
   const scored = predictions.filter((p) => p.pointsEarned !== null).length;
   const exact = predictions.filter((p) => p.pointsEarned === 5).length;
@@ -175,6 +184,60 @@ export default async function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* You vs the field */}
+      {fieldTotals.length > 1 && (
+        <div
+          className="rounded-2xl p-5"
+          style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+        >
+          <p className="text-xs font-bold uppercase tracking-[2px] mb-4" style={{ color: "#9685E4" }}>
+            You vs the field
+          </p>
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold" style={{ color: "#9685E4", letterSpacing: "-0.5px" }}>
+                {totalPoints}
+              </div>
+              <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>You</div>
+            </div>
+            <div className="flex-1 space-y-2">
+              {/* Bar: your pts vs field max */}
+              {(() => {
+                const max = Math.max(...fieldTotals, 1);
+                return (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs w-8 text-right shrink-0" style={{ color: "var(--muted-foreground)" }}>You</span>
+                      <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ backgroundColor: "var(--muted)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${(totalPoints / max) * 100}%`, backgroundColor: "#9685E4" }} />
+                      </div>
+                      <span className="text-xs w-6 tabular-nums font-semibold" style={{ color: "var(--foreground)" }}>{totalPoints}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs w-8 text-right shrink-0" style={{ color: "var(--muted-foreground)" }}>Avg</span>
+                      <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ backgroundColor: "var(--muted)" }}>
+                        <div className="h-full rounded-full" style={{ width: `${(fieldAvg / max) * 100}%`, backgroundColor: "rgba(150,133,228,0.35)" }} />
+                      </div>
+                      <span className="text-xs w-6 tabular-nums font-semibold" style={{ color: "var(--muted-foreground)" }}>{fieldAvg}</span>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+            {topPct !== null && (
+              <div className="text-center shrink-0">
+                <div className="text-2xl font-bold" style={{ color: topPct >= 50 ? "#32BEBF" : "var(--foreground)", letterSpacing: "-0.5px" }}>
+                  Top {100 - topPct}%
+                </div>
+                <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                  {totalPoints >= fieldAvg ? `+${totalPoints - fieldAvg} vs avg` : `${totalPoints - fieldAvg} vs avg`}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Points by matchday chart */}
       {chartData.length > 0 && (

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { signIn, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,13 @@ interface NavbarProps {
 export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  const displayName = user?.displayName ?? user?.name;
 
   function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
     const active = pathname === href || pathname.startsWith(href + "/");
@@ -37,12 +45,32 @@ export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
     );
   }
 
-  const displayName = user?.displayName ?? user?.name;
+  function MobileNavLink({ href, children }: { href: string; children: React.ReactNode }) {
+    const active = pathname === href || pathname.startsWith(href + "/");
+    return (
+      <Link
+        href={href}
+        className="flex items-center py-3 text-base font-medium transition-colors border-b border-white/6 last:border-0"
+        style={{ color: active ? "#fff" : "rgba(255,255,255,0.55)" }}
+      >
+        {children}
+      </Link>
+    );
+  }
+
+  const PredictBadge = () => (openCount ?? 0) > 0 ? (
+    <span
+      className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full"
+      style={{ backgroundColor: "rgba(150,133,228,0.25)", color: "#9685E4" }}
+    >
+      {openCount}
+    </span>
+  ) : null;
 
   return (
     <nav style={{ backgroundColor: "#101418" }} className="sticky top-0 z-50 border-b border-white/8">
       <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-        {/* Logo + nav links */}
+        {/* Logo + desktop nav */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2">
             <span className="font-bold text-white text-base tracking-tight">Juyo</span>
@@ -56,17 +84,7 @@ export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
               <>
                 <NavLink href="/standings">Standings</NavLink>
                 <NavLink href="/bracket">Bracket</NavLink>
-                <NavLink href="/predict">
-                  Predict
-                  {(openCount ?? 0) > 0 && (
-                    <span
-                      className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ backgroundColor: "rgba(150,133,228,0.25)", color: "#9685E4" }}
-                    >
-                      {openCount}
-                    </span>
-                  )}
-                </NavLink>
+                <NavLink href="/predict">Predict<PredictBadge /></NavLink>
                 <NavLink href="/dashboard">My scores</NavLink>
                 {isAdmin && <NavLink href="/admin">Admin</NavLink>}
               </>
@@ -74,7 +92,7 @@ export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
           </div>
         </div>
 
-        {/* Auth area */}
+        {/* Right side */}
         <div className="flex items-center gap-3">
           <button
             className="text-white/50 hover:text-white/80 transition-colors p-1"
@@ -87,6 +105,7 @@ export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             )}
           </button>
+
           {user ? (
             <>
               <Link href="/profile" className="flex items-center gap-2">
@@ -110,7 +129,7 @@ export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white/50 hover:text-white hover:bg-white/10 border-0"
+                className="hidden sm:inline-flex text-white/50 hover:text-white hover:bg-white/10 border-0"
                 onClick={() => signOut({ callbackUrl: "/" })}
               >
                 Sign out
@@ -125,8 +144,64 @@ export function Navbar({ user, isAdmin, openCount }: NavbarProps) {
               Sign in
             </Button>
           )}
+
+          {/* Hamburger — mobile only */}
+          <button
+            className="sm:hidden p-2 -mr-2 transition-colors"
+            style={{ color: "rgba(255,255,255,0.6)" }}
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+          >
+            {menuOpen ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div
+          className="sm:hidden absolute inset-x-0 z-40 border-b border-white/8"
+          style={{ backgroundColor: "#101418", top: "56px" }}
+        >
+          <div className="px-6 py-2">
+            <MobileNavLink href="/leaderboard">Leaderboard</MobileNavLink>
+            {user && (
+              <>
+                <MobileNavLink href="/standings">Standings</MobileNavLink>
+                <MobileNavLink href="/bracket">Bracket</MobileNavLink>
+                <MobileNavLink href="/predict">
+                  Predict<PredictBadge />
+                </MobileNavLink>
+                <MobileNavLink href="/dashboard">My scores</MobileNavLink>
+                {isAdmin && <MobileNavLink href="/admin">Admin</MobileNavLink>}
+              </>
+            )}
+            <div className="py-3">
+              {user ? (
+                <button
+                  className="text-sm font-medium"
+                  style={{ color: "rgba(255,255,255,0.4)" }}
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                >
+                  Sign out
+                </button>
+              ) : (
+                <button
+                  className="text-sm font-medium"
+                  style={{ color: "#9685E4" }}
+                  onClick={() => signIn("google", { callbackUrl: "/predict" })}
+                >
+                  Sign in with Google
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
