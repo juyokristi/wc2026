@@ -275,16 +275,15 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                     );
                   })()}
                   {predictions.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span style={{ color: "var(--muted-foreground)" }}>{p.userName}</span>
-                    <span className="tabular-nums font-medium" style={{ color: "var(--foreground)" }}>
-                      {p.predictedA}–{p.predictedB}
-                      {p.pointsEarned !== null && (
-                        <span className="ml-1.5" style={{ color: "#9685E4" }}>{p.pointsEarned}pts</span>
-                      )}
-                    </span>
-                  </div>
-                ))
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span style={{ color: "var(--muted-foreground)" }}>{p.userName}</span>
+                      <span className="tabular-nums font-medium" style={{ color: "var(--foreground)" }}>
+                        {p.predictedA}–{p.predictedB}
+                        {p.pointsEarned !== null && (
+                          <span className="ml-1.5" style={{ color: "#9685E4" }}>{p.pointsEarned}pts</span>
+                        )}
+                      </span>
+                    </div>
                   ))}
                 </>
               ) : (
