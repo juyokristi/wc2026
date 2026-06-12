@@ -161,99 +161,70 @@ export default async function PlayerPage({ params }: Props) {
               backgroundColor: "var(--card)",
             }}
           >
-            {/* Column headers */}
-            <div
-              className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wider"
-              style={{
-                color: "var(--muted-foreground)",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <span>Match</span>
-              <span className="text-right">Theirs</span>
-              <span className="text-right">Yours</span>
-              <span className="text-right">Result</span>
-              <span className="text-right">Pts</span>
-            </div>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <th className="px-5 py-2 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted-foreground)" }}>Match</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider w-20" style={{ color: "var(--muted-foreground)" }}>Theirs</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider w-20" style={{ color: "var(--muted-foreground)" }}>Yours</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider w-20" style={{ color: "var(--muted-foreground)" }}>Result</th>
+                  <th className="px-5 py-2 text-right text-xs font-semibold uppercase tracking-wider w-24" style={{ color: "var(--muted-foreground)" }}>Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {theirPredictions.map((p, i) => {
+                  const teamA = p.match.teamA?.name ?? p.match.teamALabel ?? "TBD";
+                  const teamB = p.match.teamB?.name ?? p.match.teamBLabel ?? "TBD";
+                  const flagA = p.match.teamA?.flagEmoji ?? "🏳";
+                  const flagB = p.match.teamB?.flagEmoji ?? "🏳";
+                  const finished = p.match.status === "FINISHED";
+                  const myPred = myPredMap[p.matchId];
 
-            {theirPredictions.map((p, i) => {
-              const teamA =
-                p.match.teamA?.name ?? p.match.teamALabel ?? "TBD";
-              const teamB =
-                p.match.teamB?.name ?? p.match.teamBLabel ?? "TBD";
-              const flagA = p.match.teamA?.flagEmoji ?? "🏳";
-              const flagB = p.match.teamB?.flagEmoji ?? "🏳";
-              const finished = p.match.status === "FINISHED";
-              const myPred = myPredMap[p.matchId];
-
-              return (
-                <div
-                  key={p.id}
-                  className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 items-center px-5 py-3"
-                  style={{
-                    borderBottom:
-                      i < theirPredictions.length - 1
-                        ? "1px solid var(--border)"
-                        : "none",
-                  }}
-                >
-                  {/* Teams */}
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-sm">{flagA}</span>
-                    <span
-                      className="text-sm truncate"
-                      style={{ color: "var(--foreground)" }}
+                  return (
+                    <tr
+                      key={p.id}
+                      style={{
+                        borderBottom:
+                          i < theirPredictions.length - 1
+                            ? "1px solid var(--border)"
+                            : "none",
+                      }}
                     >
-                      {teamA}
-                    </span>
-                    <span
-                      className="text-xs"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      vs
-                    </span>
-                    <span
-                      className="text-sm truncate"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {teamB}
-                    </span>
-                    <span className="text-sm">{flagB}</span>
-                  </div>
+                      {/* Teams */}
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-sm">{flagA}</span>
+                          <span className="text-sm truncate" style={{ color: "var(--foreground)" }}>{teamA}</span>
+                          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>vs</span>
+                          <span className="text-sm truncate" style={{ color: "var(--foreground)" }}>{teamB}</span>
+                          <span className="text-sm">{flagB}</span>
+                        </div>
+                      </td>
 
-                  {/* Their prediction */}
-                  <span
-                    className="text-sm tabular-nums font-medium text-right"
-                    style={{ color: "#9685E4" }}
-                  >
-                    {p.predictedA}–{p.predictedB}
-                  </span>
+                      {/* Their prediction */}
+                      <td className="px-3 py-3 text-right text-sm tabular-nums font-medium" style={{ color: "#9685E4" }}>
+                        {p.predictedA}–{p.predictedB}
+                      </td>
 
-                  {/* My prediction */}
-                  <span
-                    className="text-sm tabular-nums text-right"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    {myPred ? `${myPred.predictedA}–${myPred.predictedB}` : "–"}
-                  </span>
+                      {/* My prediction */}
+                      <td className="px-3 py-3 text-right text-sm tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+                        {myPred ? `${myPred.predictedA}–${myPred.predictedB}` : "–"}
+                      </td>
 
-                  {/* Actual result */}
-                  <span
-                    className="text-sm tabular-nums font-medium text-right"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    {finished && p.match.scoreA !== null
-                      ? `${p.match.scoreA}–${p.match.scoreB}`
-                      : "–"}
-                  </span>
+                      {/* Actual result */}
+                      <td className="px-3 py-3 text-right text-sm tabular-nums font-medium" style={{ color: "var(--foreground)" }}>
+                        {finished && p.match.scoreA !== null ? `${p.match.scoreA}–${p.match.scoreB}` : "–"}
+                      </td>
 
-                  {/* Points */}
-                  <div className="flex justify-end">
-                    <PointsBadge pts={p.pointsEarned} />
-                  </div>
-                </div>
-              );
-            })}
+                      {/* Points */}
+                      <td className="px-5 py-3 text-right">
+                        <PointsBadge pts={p.pointsEarned} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
