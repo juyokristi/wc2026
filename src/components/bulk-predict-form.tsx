@@ -21,10 +21,10 @@ export function BulkPredictForm({ matches }: { matches: OpenMatch[] }) {
   const [error, setError] = useState<string | null>(null);
 
   function setScore(matchId: string, side: "a" | "b", val: string) {
-    setScores((prev) => ({
-      ...prev,
-      [matchId]: { a: "", b: "", ...prev[matchId], [side]: val },
-    }));
+    setScores((prev) => {
+      const current = prev[matchId] ?? { a: "", b: "" };
+      return { ...prev, [matchId]: { ...current, [side]: val } };
+    });
   }
 
   const filledIn = Object.entries(scores).filter(([, v]) => v.a !== "" && v.b !== "").length;
