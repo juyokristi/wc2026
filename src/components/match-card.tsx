@@ -205,7 +205,6 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
       <div className="mt-1.5 flex items-center gap-3 text-xs flex-wrap" style={{ color: "var(--muted-foreground)" }}>
         <span>#{match.matchNumber}</span>
         <span>{formatKickoff(match.kickoff)}</span>
-        <span>{match.city}</span>
         {!isLocked && !finished && (
           <span className="font-medium" style={{ color: "#32BEBF" }}>Open</span>
         )}
