@@ -66,6 +66,8 @@ export default async function DashboardPage() {
   const myRank = myRankIdx >= 0 ? myRankIdx + 1 : null;
   const totalPlayers = allRanked.length;
 
+  const totalPoints = predictions.reduce((sum, p) => sum + (p.pointsEarned ?? 0), 0);
+
   const fieldTotals = allRanked.map((r) => r._sum.pointsEarned ?? 0);
   const fieldAvg = fieldTotals.length > 0
     ? Math.round(fieldTotals.reduce((a, b) => a + b, 0) / fieldTotals.length)
@@ -74,8 +76,6 @@ export default async function DashboardPage() {
   const topPct = fieldTotals.length > 1
     ? Math.round((betterThan / fieldTotals.length) * 100)
     : fieldTotals.length === 1 ? 100 : null;
-
-  const totalPoints = predictions.reduce((sum, p) => sum + (p.pointsEarned ?? 0), 0);
   const scored = predictions.filter((p) => p.pointsEarned !== null).length;
   const exact = predictions.filter((p) => p.pointsEarned === 5).length;
   const correct = predictions.filter((p) => (p.pointsEarned ?? 0) >= 3).length;
