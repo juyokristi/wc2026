@@ -3,6 +3,13 @@ import { calculatePoints } from "@/lib/scoring";
 
 const FD_BASE = "https://api.football-data.org/v4";
 
+const TLA_MAP: Record<string, string> = {
+  URY: "URU",
+};
+function normalizeTla(tla: string): string {
+  return TLA_MAP[tla] ?? tla;
+}
+
 interface FdMatch {
   utcDate: string;
   status: string;
@@ -56,8 +63,8 @@ export async function syncScores(): Promise<{
   let scoresUpdated = 0;
 
   for (const fd of fdMatches) {
-    const homeTla = fd.homeTeam?.tla?.toUpperCase();
-    const awayTla = fd.awayTeam?.tla?.toUpperCase();
+    const homeTla = normalizeTla(fd.homeTeam?.tla?.toUpperCase() ?? "");
+    const awayTla = normalizeTla(fd.awayTeam?.tla?.toUpperCase() ?? "");
     if (!homeTla || !awayTla) continue;
 
     const m = byTeamPair.get(`${homeTla}-${awayTla}`);
@@ -149,8 +156,8 @@ export async function syncScores(): Promise<{
         fd.status === "PAUSED"
       )
         continue;
-      const homeTla = fd.homeTeam?.tla?.toUpperCase();
-      const awayTla = fd.awayTeam?.tla?.toUpperCase();
+      const homeTla = normalizeTla(fd.homeTeam?.tla?.toUpperCase() ?? "");
+      const awayTla = normalizeTla(fd.awayTeam?.tla?.toUpperCase() ?? "");
       if (
         !homeTla ||
         !awayTla ||

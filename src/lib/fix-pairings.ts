@@ -2,6 +2,14 @@ import { prisma } from "@/lib/prisma";
 
 const FD_BASE = "https://api.football-data.org/v4";
 
+// football-data.org uses non-standard TLAs for some teams
+const TLA_MAP: Record<string, string> = {
+  URY: "URU", // football-data.org uses URY; FIFA/our DB uses URU
+};
+function normalizeTla(tla: string): string {
+  return TLA_MAP[tla] ?? tla;
+}
+
 interface FdMatchFull {
   utcDate: string;
   status: string;
@@ -67,8 +75,8 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
 
   // Pass 1: match by team pair — mark correct, fix kickoffs only (teams are right, no predictions deleted)
   for (const fd of groupApiMatches) {
-    const homeTla = fd.homeTeam?.tla?.toUpperCase();
-    const awayTla = fd.awayTeam?.tla?.toUpperCase();
+    const homeTla = normalizeTla(fd.homeTeam?.tla?.toUpperCase() ?? "");
+    const awayTla = normalizeTla(fd.awayTeam?.tla?.toUpperCase() ?? "");
     if (!homeTla || !awayTla) continue;
 
     const m = byTeamPair.get(`${homeTla}-${awayTla}`);
@@ -89,8 +97,8 @@ export async function fixGroupPairings(): Promise<FixPairingsResult> {
 
   // Pass 2: API matches not found by team pair → match by group + closest date, reassign teams
   for (const fd of groupApiMatches) {
-    const homeTla = fd.homeTeam?.tla?.toUpperCase();
-    const awayTla = fd.awayTeam?.tla?.toUpperCase();
+    const homeTla = normalizeTla(fd.homeTeam?.tla?.toUpperCase() ?? "");
+    const awayTla = normalizeTla(fd.awayTeam?.tla?.toUpperCase() ?? "");
     if (!homeTla || !awayTla) continue;
 
     const existingByPair = byTeamPair.get(`${homeTla}-${awayTla}`);
