@@ -3,14 +3,6 @@ import { calculatePoints } from "@/lib/scoring";
 
 const FD_BASE = "https://api.football-data.org/v4";
 
-// Module-level throttle — persists across requests on the same warm instance
-let lastSyncAt = 0;
-const SYNC_COOLDOWN_MS = 5 * 60 * 1000;
-
-export function isSyncStale(): boolean {
-  return Date.now() - lastSyncAt > SYNC_COOLDOWN_MS;
-}
-
 const TLA_MAP: Record<string, string> = {
   URY: "URU",
 };
@@ -32,7 +24,6 @@ export async function syncScores(): Promise<{
   kickoffsFixed: number;
   checked: number;
 }> {
-  lastSyncAt = Date.now();
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) {
     throw new Error("FOOTBALL_DATA_API_KEY not set");
