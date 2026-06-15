@@ -11,6 +11,6 @@ jobs:
     steps:
       - name: Call sync-scores endpoint
         run: |
-          curl -sf -X GET "${{ secrets.APP_URL }}/api/cron/sync-scores" \
+          curl -sf -X GET "${{ secrets.APP_URL }}/api/admin/sync" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -o /dev/null
