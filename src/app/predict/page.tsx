@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { MatchStage } from "@/generated/prisma/client";
 import { PredictView } from "@/components/predict-view";
 import Link from "next/link";
+import { after } from "next/server";
+import { syncScores, isSyncStale } from "@/lib/sync-scores";
 
 export const revalidate = 300;
 
@@ -20,6 +22,11 @@ const STAGE_LABELS: Record<string, string> = {
 export default async function PredictPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/");
+
+  // Fire-and-forget sync after response — at most once per 5 min per server instance
+  if (isSyncStale()) {
+    after(async () => { await syncScores().catch(() => {}); });
+  }
 
   const [matches, userPredictions, dbUser] = await Promise.all([
     prisma.match.findMany({
