@@ -57,6 +57,7 @@ export function PredictView({
   STAGE_LABELS,
 }: PredictViewProps) {
   const [view, setView] = useState<"group" | "day" | "open">("day");
+  const [showPast, setShowPast] = useState(false);
 
   const allMatches: SerializedMatch[] = [
     ...Object.values(byGroup).flat(),
@@ -158,25 +159,45 @@ export function PredictView({
         </>
       ) : view === "day" ? (
         <>
-          {Object.keys(byDay).map((day) => (
-            <section key={day}>
-              <h2
-                className="text-lg font-semibold mb-4"
-                style={{ color: "var(--foreground)" }}
-              >
-                {day}
-              </h2>
-              <div className="space-y-2">
-                {byDay[day].map((m) => (
-                  <MatchCard
-                    key={m.id}
-                    match={m}
-                    prediction={predictionMap[m.id] ?? null}
-                  />
+          {(() => {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const allDays = Object.keys(byDay);
+            const pastDays = allDays.filter(
+              (day) => new Date(byDay[day][0].kickoff) < todayStart
+            );
+            const visibleDays = showPast
+              ? allDays
+              : allDays.filter((day) => new Date(byDay[day][0].kickoff) >= todayStart);
+            return (
+              <>
+                {pastDays.length > 0 && (
+                  <button
+                    className="text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--muted-foreground)",
+                    }}
+                    onClick={() => setShowPast((v) => !v)}
+                  >
+                    {showPast ? "Hide past" : `Show past (${pastDays.length} day${pastDays.length !== 1 ? "s" : ""})`}
+                  </button>
+                )}
+                {visibleDays.map((day) => (
+                  <section key={day}>
+                    <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+                      {day}
+                    </h2>
+                    <div className="space-y-2">
+                      {byDay[day].map((m) => (
+                        <MatchCard key={m.id} match={m} prediction={predictionMap[m.id] ?? null} />
+                      ))}
+                    </div>
+                  </section>
                 ))}
-              </div>
-            </section>
-          ))}
+              </>
+            );
+          })()}
         </>
       ) : (
         <>

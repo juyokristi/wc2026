@@ -5,6 +5,8 @@ import { MatchStage } from "@/generated/prisma/client";
 import { PredictView } from "@/components/predict-view";
 import Link from "next/link";
 
+export const revalidate = 300;
+
 const STAGE_LABELS: Record<string, string> = {
   GROUP: "Group Stage",
   ROUND_OF_32: "Round of 32",
