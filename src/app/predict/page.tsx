@@ -7,8 +7,6 @@ import Link from "next/link";
 import { after } from "next/server";
 import { syncScores, isSyncStale } from "@/lib/sync-scores";
 
-export const revalidate = 300;
-
 const STAGE_LABELS: Record<string, string> = {
   GROUP: "Group Stage",
   ROUND_OF_32: "Round of 32",
