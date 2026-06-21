@@ -43,30 +43,36 @@ export default async function DashboardPage() {
     select: { id: true, name: true, displayName: true, image: true, email: true },
   });
 
-  const predictions = await prisma.prediction.findMany({
-    where: { userId: session.user.id },
-    include: {
-      match: {
-        include: {
-          teamA: { select: { name: true, flagEmoji: true, code: true } },
-          teamB: { select: { name: true, flagEmoji: true, code: true } },
+  const [predictions, allRanked, myWinnerPick] = await Promise.all([
+    prisma.prediction.findMany({
+      where: { userId: session.user.id },
+      include: {
+        match: {
+          include: {
+            teamA: { select: { name: true, flagEmoji: true, code: true } },
+            teamB: { select: { name: true, flagEmoji: true, code: true } },
+          },
         },
       },
-    },
-    orderBy: { match: { kickoff: "asc" } },
-  });
-
-  const allRanked = await prisma.prediction.groupBy({
-    by: ["userId"],
-    _sum: { pointsEarned: true },
-    where: { pointsEarned: { not: null } },
-    orderBy: { _sum: { pointsEarned: "desc" } },
-  });
+      orderBy: { match: { kickoff: "asc" } },
+    }),
+    prisma.prediction.groupBy({
+      by: ["userId"],
+      _sum: { pointsEarned: true },
+      where: { pointsEarned: { not: null } },
+      orderBy: { _sum: { pointsEarned: "desc" } },
+    }),
+    prisma.winnerPrediction.findUnique({
+      where: { userId: session.user.id },
+      include: { team: { select: { name: true, flagEmoji: true, code: true } } },
+    }),
+  ]);
   const myRankIdx = allRanked.findIndex((r) => r.userId === session.user.id);
   const myRank = myRankIdx >= 0 ? myRankIdx + 1 : null;
   const totalPlayers = allRanked.length;
 
-  const totalPoints = predictions.reduce((sum, p) => sum + (p.pointsEarned ?? 0), 0);
+  const winnerPoints = myWinnerPick?.pointsEarned ?? 0;
+  const totalPoints = predictions.reduce((sum, p) => sum + (p.pointsEarned ?? 0), 0) + winnerPoints;
 
   const fieldTotals = allRanked.map((r) => r._sum.pointsEarned ?? 0);
   const fieldAvg = fieldTotals.length > 0
@@ -265,6 +271,47 @@ export default async function DashboardPage() {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Winner pick */}
+      {myWinnerPick && (
+        <div
+          className="rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+          style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+        >
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[2px] mb-1" style={{ color: "#9685E4" }}>
+              Tournament Winner Pick
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{myWinnerPick.team.flagEmoji}</span>
+              <span className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+                {myWinnerPick.team.name}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            {myWinnerPick.pointsEarned !== null ? (
+              <>
+                <p className="text-2xl font-bold" style={{ color: myWinnerPick.pointsEarned > 0 ? "#32BEBF" : "var(--muted-foreground)", letterSpacing: "-0.5px" }}>
+                  {myWinnerPick.pointsEarned} pts
+                </p>
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  {myWinnerPick.pointsEarned > 0 ? "Correct!" : "Incorrect"}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-bold" style={{ color: "#9685E4", letterSpacing: "-0.5px" }}>
+                  {myWinnerPick.potentialPoints} pts
+                </p>
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  Potential · Final pending
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}

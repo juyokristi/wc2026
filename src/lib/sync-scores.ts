@@ -113,6 +113,24 @@ export async function syncScores(): Promise<{
           })
         )
       );
+
+      if (m.stage === "FINAL") {
+        const winnerId = scoreA > scoreB ? m.teamAId : scoreB > scoreA ? m.teamBId : null;
+        if (winnerId) {
+          const winnerPicks = await prisma.winnerPrediction.findMany({
+            where: { pointsEarned: null },
+          });
+          await Promise.all(
+            winnerPicks.map((wp) =>
+              prisma.winnerPrediction.update({
+                where: { id: wp.id },
+                data: { pointsEarned: wp.teamId === winnerId ? wp.potentialPoints : 0 },
+              })
+            )
+          );
+        }
+      }
+
       scoresUpdated++;
     } else if (fd.status === "IN_PLAY" || fd.status === "PAUSED") {
       await prisma.match.update({

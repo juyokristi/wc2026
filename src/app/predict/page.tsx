@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { MatchStage } from "@/generated/prisma/client";
 import { PredictView } from "@/components/predict-view";
+import { WinnerPredictionCard } from "@/components/winner-prediction-card";
 import Link from "next/link";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -19,7 +20,13 @@ export default async function PredictPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/");
 
-  const [matches, userPredictions, dbUser] = await Promise.all([
+  const FINAL_DATE = new Date("2026-07-19T00:00:00Z");
+  const potentialPoints = Math.max(
+    0,
+    Math.ceil((FINAL_DATE.getTime() - Date.now()) / 86_400_000)
+  );
+
+  const [matches, userPredictions, dbUser, allTeams, winnerPick] = await Promise.all([
     prisma.match.findMany({
       include: {
         teamA: { select: { name: true, flagEmoji: true, code: true } },
@@ -34,6 +41,14 @@ export default async function PredictPage() {
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { id: true, displayName: true },
+    }),
+    prisma.team.findMany({
+      select: { id: true, name: true, code: true, flagEmoji: true },
+      orderBy: [{ group: "asc" }, { name: "asc" }],
+    }),
+    prisma.winnerPrediction.findUnique({
+      where: { userId: session.user.id },
+      include: { team: { select: { name: true, flagEmoji: true, code: true } } },
     }),
   ]);
 
@@ -119,6 +134,12 @@ export default async function PredictPage() {
           </Link>
         </div>
       )}
+
+      <WinnerPredictionCard
+        teams={allTeams}
+        initialPick={winnerPick ? { ...winnerPick, lockedAt: winnerPick.lockedAt.toISOString() } : null}
+        potentialPoints={potentialPoints}
+      />
 
       <PredictView
         byGroup={serializedByGroup}

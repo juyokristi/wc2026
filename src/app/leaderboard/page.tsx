@@ -1,47 +1,124 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
 import { LeaderboardScroller } from "@/components/leaderboard-scroller";
+import { LeaderboardView, type UserStats } from "@/components/leaderboard-view";
 
 export const revalidate = 60;
 
 export default async function LeaderboardPage() {
   const session = await auth();
 
-  const grouped = await prisma.prediction.groupBy({
-    by: ["userId"],
-    _sum: { pointsEarned: true },
-    _count: { id: true },
-    where: { pointsEarned: { not: null } },
-    orderBy: { _sum: { pointsEarned: "desc" } },
-    take: 100,
-  });
+  const [allPredictions, winnerPredictions, allUsers] = await Promise.all([
+    prisma.prediction.findMany({
+      where: { pointsEarned: { not: null } },
+      include: {
+        user: { select: { id: true, name: true, displayName: true, image: true } },
+        match: { select: { stage: true, kickoff: true } },
+      },
+    }),
+    prisma.winnerPrediction.findMany({
+      include: { team: { select: { name: true, flagEmoji: true } } },
+    }),
+    prisma.user.findMany({
+      select: { id: true, name: true, displayName: true, image: true },
+    }),
+  ]);
 
-  const userIds = grouped.map((g) => g.userId);
-  const users = await prisma.user.findMany({
-    where: { id: { in: userIds } },
-    select: { id: true, displayName: true, name: true, image: true },
-  });
-  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+  const winnerByUser = new Map(winnerPredictions.map((wp) => [wp.userId, wp]));
+  const userMap = new Map(allUsers.map((u) => [u.id, u]));
 
-  const leaderboard = grouped.map((g, index) => ({
-    rank: index + 1,
-    user: userMap[g.userId],
-    totalPoints: g._sum.pointsEarned ?? 0,
-    predictionsScored: g._count.id,
-  }));
+  // Compute UserStats per user
+  const statsMap = new Map<string, UserStats>();
 
-  function rankDisplay(rank: number) {
-    if (rank === 1) return { label: "1", medal: "🥇" };
-    if (rank === 2) return { label: "2", medal: "🥈" };
-    if (rank === 3) return { label: "3", medal: "🥉" };
-    return { label: String(rank), medal: null };
+  for (const p of allPredictions) {
+    const uid = p.user.id;
+    if (!statsMap.has(uid)) {
+      const u = userMap.get(uid) ?? p.user;
+      statsMap.set(uid, {
+        userId: uid,
+        name: u.displayName ?? u.name ?? "Unknown",
+        image: u.image ?? null,
+        totalPts: 0,
+        scoredCount: 0,
+        avgPts: 0,
+        bestDayPts: 0,
+        last5Avg: 0,
+        exactCount: 0,
+        exactPct: 0,
+        groupPts: 0,
+        knockoutPts: 0,
+      });
+    }
+    const s = statsMap.get(uid)!;
+    const pts = p.pointsEarned!;
+    s.scoredCount++;
+    s.totalPts += pts;
+    if (pts === 5) s.exactCount++;
+    if (p.match.stage === "GROUP") s.groupPts += pts;
+    else s.knockoutPts += pts;
   }
+
+  // Add winner prediction points to totalPts
+  for (const [uid, wp] of winnerByUser) {
+    if (!statsMap.has(uid)) {
+      const u = userMap.get(uid);
+      if (!u) continue;
+      statsMap.set(uid, {
+        userId: uid,
+        name: u.displayName ?? u.name ?? "Unknown",
+        image: u.image ?? null,
+        totalPts: 0,
+        scoredCount: 0,
+        avgPts: 0,
+        bestDayPts: 0,
+        last5Avg: 0,
+        exactCount: 0,
+        exactPct: 0,
+        groupPts: 0,
+        knockoutPts: 0,
+      });
+    }
+    const s = statsMap.get(uid)!;
+    s.totalPts += wp.pointsEarned ?? 0;
+    s.winnerPick = {
+      teamName: wp.team.name,
+      flag: wp.team.flagEmoji,
+      potentialPts: wp.potentialPoints,
+      pointsEarned: wp.pointsEarned,
+    };
+  }
+
+  // Compute derived metrics
+  for (const [uid, s] of statsMap) {
+    s.avgPts = s.scoredCount > 0 ? s.totalPts / s.scoredCount : 0;
+    s.exactPct = s.scoredCount > 0 ? (s.exactCount / s.scoredCount) * 100 : 0;
+
+    // Best day: group predictions by day, find max day total
+    const dayTotals = new Map<string, number>();
+    for (const p of allPredictions) {
+      if (p.user.id !== uid || p.pointsEarned === null) continue;
+      const day = new Date(p.match.kickoff).toISOString().split("T")[0];
+      dayTotals.set(day, (dayTotals.get(day) ?? 0) + p.pointsEarned);
+    }
+    s.bestDayPts = dayTotals.size > 0 ? Math.max(...dayTotals.values()) : 0;
+
+    // Last 5: most recent 5 scored predictions by kickoff
+    const userPreds = allPredictions
+      .filter((p) => p.user.id === uid && p.pointsEarned !== null)
+      .sort((a, b) => new Date(b.match.kickoff).getTime() - new Date(a.match.kickoff).getTime())
+      .slice(0, 5);
+    s.last5Avg =
+      userPreds.length > 0
+        ? userPreds.reduce((sum, p) => sum + p.pointsEarned!, 0) / userPreds.length
+        : 0;
+  }
+
+  const stats = [...statsMap.values()].sort((a, b) => b.totalPts - a.totalPts);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <LeaderboardScroller />
+
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs font-bold uppercase tracking-[2px] mb-2" style={{ color: "#9685E4" }}>
@@ -68,6 +145,7 @@ export default async function LeaderboardPage() {
           { label: "Correct result + same goal margin", pts: "4 pts" },
           { label: "Correct result only", pts: "3 pts" },
           { label: "Wrong result", pts: "0 pts" },
+          { label: "Tournament winner pick", pts: "days until Final" },
         ].map(({ label, pts }, i, arr) => (
           <div key={label}>
             <div className="flex items-center justify-between text-sm">
@@ -79,103 +157,10 @@ export default async function LeaderboardPage() {
         ))}
       </div>
 
-      {/* Table */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
-      >
-        {leaderboard.length === 0 ? (
-          <div className="py-16 text-center space-y-2">
-            <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
-              No scores yet
-            </p>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              Predictions are scored after each match finishes. Check back soon.
-            </p>
-          </div>
-        ) : (
-          leaderboard.map((entry, i) => {
-            const isMe = entry.user?.id === session?.user?.id;
-            const displayName = entry.user?.displayName ?? entry.user?.name ?? "Unknown";
-            const { label, medal } = rankDisplay(entry.rank);
-            const rowInner = (
-              <>
-                {/* Rank */}
-                <div className="w-8 shrink-0 text-center">
-                  {medal ? (
-                    <span className="text-lg">{medal}</span>
-                  ) : (
-                    <span className="text-sm font-semibold" style={{ color: "var(--muted-foreground)" }}>
-                      {label}
-                    </span>
-                  )}
-                </div>
-
-                {/* Avatar */}
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarImage src={entry.user?.image ?? undefined} alt={displayName} />
-                  <AvatarFallback className="text-xs font-medium" style={{ backgroundColor: "var(--muted)", color: "var(--mid-foreground)" }}>
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-
-                {/* Name */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: "var(--foreground)" }}>
-                    {displayName}
-                    {isMe && (
-                      <span className="ml-2 text-xs font-semibold" style={{ color: "#9685E4" }}>
-                        you
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                    {entry.predictionsScored} match{entry.predictionsScored !== 1 ? "es" : ""} scored
-                  </p>
-                </div>
-
-                {/* Points */}
-                <div
-                  className="shrink-0 text-right text-base font-bold"
-                  style={{ color: isMe ? "#9685E4" : "var(--foreground)" }}
-                >
-                  {entry.totalPoints}
-                  <span className="text-xs font-normal ml-1" style={{ color: "var(--muted-foreground)" }}>pts</span>
-                </div>
-              </>
-            );
-
-            const rowStyle = {
-              borderBottom: i < leaderboard.length - 1 ? "1px solid var(--border)" : "none",
-              backgroundColor: isMe ? "rgba(150, 133, 228, 0.06)" : "transparent",
-            };
-
-            if (!isMe && entry.user?.id) {
-              return (
-                <Link
-                  key={entry.user.id}
-                  href={`/players/${entry.user.id}`}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors"
-                  style={rowStyle}
-                >
-                  {rowInner}
-                </Link>
-              );
-            }
-
-            return (
-              <div
-                id="me-row"
-                key={entry.user?.id}
-                className="flex items-center gap-4 px-5 py-4"
-                style={rowStyle}
-              >
-                {rowInner}
-              </div>
-            );
-          })
-        )}
-      </div>
+      <LeaderboardView
+        stats={stats}
+        currentUserId={session?.user?.id ?? null}
+      />
     </div>
   );
 }
