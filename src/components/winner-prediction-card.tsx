@@ -29,6 +29,7 @@ export function WinnerPredictionCard({ teams, initialPick, potentialPoints }: Pr
   const [selected, setSelected] = useState<Team | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   async function lockIn() {
     if (!selected) return;
@@ -46,6 +47,7 @@ export function WinnerPredictionCard({ teams, initialPick, potentialPoints }: Pr
       } else {
         setPick(data.pick);
         setSelected(null);
+        setOpen(false);
       }
     } catch {
       setError("Network error");
@@ -71,9 +73,9 @@ export function WinnerPredictionCard({ teams, initialPick, potentialPoints }: Pr
         </p>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{pick.team.flagEmoji}</span>
+            <span className="text-2xl">{pick.team.flagEmoji}</span>
             <div>
-              <p className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
                 {pick.team.name}
               </p>
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
@@ -85,7 +87,7 @@ export function WinnerPredictionCard({ teams, initialPick, potentialPoints }: Pr
             {pick.pointsEarned !== null ? (
               <div>
                 <p
-                  className="text-2xl font-bold"
+                  className="text-xl font-bold"
                   style={{ color: pick.pointsEarned > 0 ? "#32BEBF" : "var(--muted-foreground)", letterSpacing: "-0.5px" }}
                 >
                   {pick.pointsEarned} pts
@@ -96,7 +98,7 @@ export function WinnerPredictionCard({ teams, initialPick, potentialPoints }: Pr
               </div>
             ) : (
               <div>
-                <p className="text-2xl font-bold" style={{ color: "#9685E4", letterSpacing: "-0.5px" }}>
+                <p className="text-xl font-bold" style={{ color: "#9685E4", letterSpacing: "-0.5px" }}>
                   {pick.potentialPoints} pts
                 </p>
                 <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
@@ -112,84 +114,119 @@ export function WinnerPredictionCard({ teams, initialPick, potentialPoints }: Pr
 
   return (
     <div
-      className="rounded-2xl p-5 space-y-4"
+      className="rounded-2xl overflow-hidden"
       style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
     >
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[2px] mb-1" style={{ color: "#9685E4" }}>
-          Tournament Winner Pick
-        </p>
-        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-          Pick the tournament winner and earn{" "}
-          <span className="font-semibold" style={{ color: "#9685E4" }}>
-            {potentialPoints} pts
-          </span>{" "}
-          if correct. This cannot be changed once locked.
-        </p>
-      </div>
-
-      {selected ? (
-        <div
-          className="rounded-xl p-4 flex items-center justify-between gap-4"
-          style={{ backgroundColor: "rgba(150,133,228,0.08)", border: "1px solid rgba(150,133,228,0.2)" }}
+      {/* Header row — always visible, toggles open */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
+      >
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[2px]" style={{ color: "#9685E4" }}>
+            Tournament Winner Pick
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+            Worth up to{" "}
+            <span className="font-semibold" style={{ color: "#9685E4" }}>
+              {potentialPoints} pts
+            </span>{" "}
+            today · one-time lock
+          </p>
+        </div>
+        <span
+          className="text-lg shrink-0 transition-transform"
+          style={{
+            color: "var(--muted-foreground)",
+            display: "inline-block",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{selected.flagEmoji}</span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                {selected.name}
-              </p>
-              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                Lock in for {potentialPoints} pts?
-              </p>
-            </div>
+          ›
+        </span>
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 space-y-4">
+          {/* How it works */}
+          <div
+            className="rounded-xl px-4 py-3 text-xs space-y-1"
+            style={{ backgroundColor: "rgba(150,133,228,0.07)", border: "1px solid rgba(150,133,228,0.15)" }}
+          >
+            <p className="font-semibold" style={{ color: "#9685E4" }}>How points are calculated</p>
+            <p style={{ color: "var(--muted-foreground)" }}>
+              Points = number of days remaining until the Final (Jul 19). Pick early → more points.
+              Today a correct pick is worth <span className="font-semibold" style={{ color: "var(--foreground)" }}>{potentialPoints} pts</span>.
+              Wrong pick scores 0. <span className="font-semibold" style={{ color: "var(--foreground)" }}>Cannot be changed once locked.</span>
+            </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setSelected(null)}
-              className="text-sm px-3 py-1.5 rounded-lg font-medium"
-              style={{ color: "var(--muted-foreground)", backgroundColor: "var(--muted)" }}
+
+          {/* Confirm bar */}
+          {selected && (
+            <div
+              className="rounded-xl px-4 py-3 flex items-center justify-between gap-4"
+              style={{ backgroundColor: "rgba(150,133,228,0.08)", border: "1px solid rgba(150,133,228,0.2)" }}
             >
-              Cancel
-            </button>
-            <button
-              onClick={lockIn}
-              disabled={loading}
-              className="text-sm px-3 py-1.5 rounded-lg font-semibold"
-              style={{ backgroundColor: "#9685E4", color: "#fff", opacity: loading ? 0.6 : 1 }}
-            >
-              {loading ? "Locking…" : "Lock in"}
-            </button>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{selected.flagEmoji}</span>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                    {selected.name}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    Lock in for {potentialPoints} pts?
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setSelected(null)}
+                  className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                  style={{ color: "var(--muted-foreground)", backgroundColor: "var(--muted)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={lockIn}
+                  disabled={loading}
+                  className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+                  style={{ backgroundColor: "#9685E4", color: "#fff", opacity: loading ? 0.6 : 1 }}
+                >
+                  {loading ? "Locking…" : "Lock in"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-xs" style={{ color: "#FE7637" }}>{error}</p>
+          )}
+
+          {/* Team grid */}
+          <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-1.5">
+            {teams.map((team) => (
+              <button
+                key={team.id}
+                onClick={() => setSelected(team)}
+                className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg text-center transition-colors"
+                style={{
+                  border: selected?.id === team.id
+                    ? "1px solid #9685E4"
+                    : "1px solid var(--border)",
+                  backgroundColor: selected?.id === team.id
+                    ? "rgba(150,133,228,0.1)"
+                    : "transparent",
+                }}
+              >
+                <span className="text-base leading-none">{team.flagEmoji}</span>
+                <span className="text-[9px] font-semibold" style={{ color: "var(--muted-foreground)" }}>
+                  {team.code}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
-      ) : null}
-
-      {error && (
-        <p className="text-sm" style={{ color: "#FE7637" }}>{error}</p>
       )}
-
-      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-        {teams.map((team) => (
-          <button
-            key={team.id}
-            onClick={() => setSelected(team)}
-            className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-center transition-colors"
-            style={{
-              border: selected?.id === team.id
-                ? "1px solid #9685E4"
-                : "1px solid var(--border)",
-              backgroundColor: selected?.id === team.id
-                ? "rgba(150,133,228,0.1)"
-                : "transparent",
-            }}
-          >
-            <span className="text-xl leading-none">{team.flagEmoji}</span>
-            <span className="text-[10px] font-semibold" style={{ color: "var(--muted-foreground)" }}>
-              {team.code}
-            </span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
