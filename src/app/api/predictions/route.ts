@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { matchId, predictedA, predictedB } = body;
+  const { matchId, predictedA, predictedB, qualifierPick } = body;
 
   if (
     typeof matchId !== "string" ||
@@ -32,10 +32,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Predictions are locked for this match" }, { status: 403 });
   }
 
+  // Validate qualifier pick for knockout matches
+  let resolvedQualifierPick: string | null = null;
+  if (qualifierPick != null) {
+    if (match.stage === "GROUP") {
+      return NextResponse.json({ error: "Qualifier pick not available in group stage" }, { status: 400 });
+    }
+    if (qualifierPick !== match.teamAId && qualifierPick !== match.teamBId) {
+      return NextResponse.json({ error: "Invalid qualifier pick" }, { status: 400 });
+    }
+    resolvedQualifierPick = qualifierPick;
+  }
+
   const prediction = await prisma.prediction.upsert({
     where: { userId_matchId: { userId: session.user.id, matchId } },
-    update: { predictedA, predictedB },
-    create: { userId: session.user.id, matchId, predictedA, predictedB },
+    update: { predictedA, predictedB, qualifierPick: resolvedQualifierPick },
+    create: { userId: session.user.id, matchId, predictedA, predictedB, qualifierPick: resolvedQualifierPick },
   });
 
   return NextResponse.json(prediction);

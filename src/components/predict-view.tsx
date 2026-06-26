@@ -8,6 +8,8 @@ interface SerializedMatch {
   matchNumber: number;
   stage: string;
   group: string | null;
+  teamAId: string | null;
+  teamBId: string | null;
   teamALabel: string | null;
   teamBLabel: string | null;
   teamA: { name: string; flagEmoji: string; code: string } | null;
@@ -18,6 +20,7 @@ interface SerializedMatch {
   country: string;
   scoreA: number | null;
   scoreB: number | null;
+  winnerId: string | null;
   status: string;
 }
 
@@ -25,6 +28,7 @@ interface Prediction {
   predictedA: number;
   predictedB: number;
   pointsEarned: number | null;
+  qualifierPick: string | null;
 }
 
 interface PredictViewProps {

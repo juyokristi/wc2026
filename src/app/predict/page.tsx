@@ -36,7 +36,7 @@ export default async function PredictPage() {
     }),
     prisma.prediction.findMany({
       where: { userId: session.user.id },
-      select: { matchId: true, predictedA: true, predictedB: true, pointsEarned: true },
+      select: { matchId: true, predictedA: true, predictedB: true, pointsEarned: true, qualifierPick: true },
     }),
     prisma.user.findUnique({
       where: { id: session.user.id },

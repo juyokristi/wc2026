@@ -16,7 +16,10 @@ interface FdMatch {
   venue: string | null;
   homeTeam: { tla: string };
   awayTeam: { tla: string };
-  score: { fullTime: { home: number | null; away: number | null } };
+  score: {
+    fullTime: { home: number | null; away: number | null };
+    winner: string | null; // "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null
+  };
 }
 
 export async function syncScores(): Promise<{
@@ -84,6 +87,20 @@ export async function syncScores(): Promise<{
       const scoreA = teamAIsHome ? homeScore : awayScore;
       const scoreB = teamAIsHome ? awayScore : homeScore;
 
+      // Determine qualifier (winner) for knockout matches — needed for ET/pens
+      let winnerId: string | null = null;
+      if (m.stage !== "GROUP") {
+        if (scoreA > scoreB) {
+          winnerId = m.teamAId!;
+        } else if (scoreB > scoreA) {
+          winnerId = m.teamBId!;
+        } else if (fd.score.winner === "HOME_TEAM") {
+          winnerId = teamAIsHome ? m.teamAId! : m.teamBId!;
+        } else if (fd.score.winner === "AWAY_TEAM") {
+          winnerId = teamAIsHome ? m.teamBId! : m.teamAId!;
+        }
+      }
+
       await prisma.match.update({
         where: { id: m.id },
         data: {
@@ -92,6 +109,7 @@ export async function syncScores(): Promise<{
           status: "FINISHED",
           kickoff: correctKickoff,
           ...venueUpdate,
+          ...(winnerId ? { winnerId } : {}),
         },
       });
 
@@ -99,19 +117,15 @@ export async function syncScores(): Promise<{
         where: { matchId: m.id },
       });
       await Promise.all(
-        predictions.map((p) =>
-          prisma.prediction.update({
+        predictions.map((p) => {
+          const basePoints = calculatePoints(scoreA, scoreB, p.predictedA, p.predictedB);
+          const qualifierBonus =
+            winnerId && p.qualifierPick && p.qualifierPick === winnerId ? 2 : 0;
+          return prisma.prediction.update({
             where: { id: p.id },
-            data: {
-              pointsEarned: calculatePoints(
-                scoreA,
-                scoreB,
-                p.predictedA,
-                p.predictedB
-              ),
-            },
-          })
-        )
+            data: { pointsEarned: basePoints + qualifierBonus },
+          });
+        })
       );
 
       if (m.stage === "FINAL") {
