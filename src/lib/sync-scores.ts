@@ -151,67 +151,72 @@ export async function syncScores(): Promise<{
     }
   }
 
-  // Fix knockout team assignments
-  const knockoutMatches = await prisma.match.findMany({
+  // Sync knockout team assignments for matches still missing a team
+  const knockoutPending = await prisma.match.findMany({
     where: {
       stage: { not: "GROUP" },
       status: { not: "FINISHED" },
       OR: [{ teamAId: null }, { teamBId: null }],
     },
+    select: { id: true, kickoff: true },
   });
 
-  if (knockoutMatches.length > 0) {
-    // Build team lookup by code
-    const allTeams = await prisma.team.findMany({
-      select: { id: true, code: true },
-    });
+  if (knockoutPending.length > 0) {
+    const allTeams = await prisma.team.findMany({ select: { id: true, code: true } });
     const teamByCode = new Map(allTeams.map((t) => [t.code, t.id]));
 
+    // Collect FD scheduled matches that have real (non-TBD) teams, grouped by UTC date
+    const fdKnownByDay = new Map<string, FdMatch[]>();
     for (const fd of fdMatches) {
-      if (
-        fd.status === "FINISHED" ||
-        fd.status === "IN_PLAY" ||
-        fd.status === "PAUSED"
-      )
-        continue;
+      if (fd.status === "FINISHED" || fd.status === "IN_PLAY" || fd.status === "PAUSED") continue;
       const homeTla = normalizeTla(fd.homeTeam?.tla?.toUpperCase() ?? "");
       const awayTla = normalizeTla(fd.awayTeam?.tla?.toUpperCase() ?? "");
-      if (
-        !homeTla ||
-        !awayTla ||
-        homeTla === "TBD" ||
-        awayTla === "TBD"
-      )
-        continue;
+      if (!homeTla || !awayTla || homeTla === "TBD" || awayTla === "TBD") continue;
+      if (!teamByCode.has(homeTla) || !teamByCode.has(awayTla)) continue;
+      const day = new Date(fd.utcDate).toISOString().split("T")[0];
+      if (!fdKnownByDay.has(day)) fdKnownByDay.set(day, []);
+      fdKnownByDay.get(day)!.push(fd);
+    }
 
-      const homeTeamId = teamByCode.get(homeTla);
-      const awayTeamId = teamByCode.get(awayTla);
-      if (!homeTeamId || !awayTeamId) continue;
+    // Group pending DB matches by UTC date
+    const dbPendingByDay = new Map<string, typeof knockoutPending>();
+    for (const k of knockoutPending) {
+      const day = k.kickoff.toISOString().split("T")[0];
+      if (!dbPendingByDay.has(day)) dbPendingByDay.set(day, []);
+      dbPendingByDay.get(day)!.push(k);
+    }
 
-      // Find knockout match on same day with null teams
-      const fdDate = new Date(fd.utcDate);
-      const dayStart = new Date(fdDate);
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const dayEnd = new Date(fdDate);
-      dayEnd.setUTCHours(23, 59, 59, 999);
+    // Pair FD ↔ DB by day, sorted by kickoff time so two matches on the same day
+    // don't get each other's teams (fixes the double-assignment bug)
+    for (const [day, fdList] of fdKnownByDay) {
+      const dbList = dbPendingByDay.get(day);
+      if (!dbList || dbList.length === 0) continue;
 
-      const matchEntry = knockoutMatches.find(
-        (k) =>
-          k.kickoff >= dayStart &&
-          k.kickoff <= dayEnd &&
-          (k.teamAId === null || k.teamBId === null)
+      const sortedFd = [...fdList].sort(
+        (a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()
+      );
+      const sortedDb = [...dbList].sort(
+        (a, b) => a.kickoff.getTime() - b.kickoff.getTime()
       );
 
-      if (!matchEntry) continue;
-
-      await prisma.match.update({
-        where: { id: matchEntry.id },
-        data: {
-          teamAId: homeTeamId,
-          teamBId: awayTeamId,
-          kickoff: fdDate,
-        },
-      });
+      for (let i = 0; i < Math.min(sortedFd.length, sortedDb.length); i++) {
+        const fd = sortedFd[i];
+        const db = sortedDb[i];
+        const homeTla = normalizeTla(fd.homeTeam.tla.toUpperCase());
+        const awayTla = normalizeTla(fd.awayTeam.tla.toUpperCase());
+        const homeTeamId = teamByCode.get(homeTla)!;
+        const awayTeamId = teamByCode.get(awayTla)!;
+        const fdKickoff = new Date(fd.utcDate);
+        await prisma.match.update({
+          where: { id: db.id },
+          data: {
+            teamAId: homeTeamId,
+            teamBId: awayTeamId,
+            kickoff: fdKickoff,
+            ...(fd.venue ? { venue: fd.venue } : {}),
+          },
+        });
+      }
     }
   }
 
