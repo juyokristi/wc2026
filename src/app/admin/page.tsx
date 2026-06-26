@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { syncScores } from "@/lib/sync-scores";
 import { AdminSyncButton } from "@/components/admin-sync-button";
 import { AdminFixPairingsButton } from "@/components/admin-fix-pairings-button";
+import { AdminFixKnockoutsButton } from "@/components/admin-fix-knockouts-button";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -91,6 +92,33 @@ export default async function AdminPage() {
         </div>
 
         <AdminFixPairingsButton />
+      </div>
+
+      {/* Fix duplicate knockout assignments */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div>
+          <h2
+            className="text-base font-semibold"
+            style={{ color: "var(--foreground)" }}
+          >
+            Fix duplicate knockout assignments
+          </h2>
+          <p
+            className="text-sm mt-0.5"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Finds knockout match slots where the same team pair was accidentally
+            assigned twice, clears the duplicates, then run Score Sync to repopulate correctly.
+          </p>
+        </div>
+
+        <AdminFixKnockoutsButton />
       </div>
     </div>
   );

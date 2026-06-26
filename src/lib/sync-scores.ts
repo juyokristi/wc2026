@@ -165,7 +165,9 @@ export async function syncScores(): Promise<{
     const allTeams = await prisma.team.findMany({ select: { id: true, code: true } });
     const teamByCode = new Map(allTeams.map((t) => [t.code, t.id]));
 
-    // Collect FD scheduled matches that have real (non-TBD) teams, grouped by UTC date
+    // Collect FD scheduled matches that have real (non-TBD) teams, grouped by UTC date.
+    // Skip matches already assigned to a DB slot (byTeamPair) — those are handled by
+    // the main loop and must not be re-assigned to a different pending slot.
     const fdKnownByDay = new Map<string, FdMatch[]>();
     for (const fd of fdMatches) {
       if (fd.status === "FINISHED" || fd.status === "IN_PLAY" || fd.status === "PAUSED") continue;
@@ -173,6 +175,7 @@ export async function syncScores(): Promise<{
       const awayTla = normalizeTla(fd.awayTeam?.tla?.toUpperCase() ?? "");
       if (!homeTla || !awayTla || homeTla === "TBD" || awayTla === "TBD") continue;
       if (!teamByCode.has(homeTla) || !teamByCode.has(awayTla)) continue;
+      if (byTeamPair.has(`${homeTla}-${awayTla}`)) continue; // already assigned
       const day = new Date(fd.utcDate).toISOString().split("T")[0];
       if (!fdKnownByDay.has(day)) fdKnownByDay.set(day, []);
       fdKnownByDay.get(day)!.push(fd);
