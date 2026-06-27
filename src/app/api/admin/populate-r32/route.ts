@@ -342,8 +342,10 @@ export async function POST() {
     await prisma.match.update({
       where: { id: slot.id },
       data: {
-        teamAId: homeTeam?.id ?? null,
-        teamBId: awayTeam?.id ?? null,
+        // Only write teamIds when we have a confirmed team — never null-out a slot
+        // that was previously populated but whose group isn't fully settled yet.
+        ...(homeTeam !== null ? { teamAId: homeTeam.id } : {}),
+        ...(awayTeam !== null ? { teamBId: awayTeam.id } : {}),
         teamALabel: homeLabel,
         teamBLabel: awayLabel,
         kickoff: fdEntry ? new Date(fdEntry.utcDate) : new Date(formula.kickoffUtc),
