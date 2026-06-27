@@ -213,19 +213,21 @@ export async function POST() {
     teamsByGroup.get(t.group)!.push(t);
   }
 
-  // byGroupRank: current standings for all groups (fixed rank assignments)
+  // byGroupRank and thirdsByGroup: only from fully finished groups.
+  // Partial standings are unreliable (0-pts sort order is arbitrary), so we only
+  // assign teams once a group has played all its matches.
   const byGroupRank = new Map<string, TeamInfo>();
-  // thirdsByGroup: only from fully finished groups (for cross-group best3rd comparison)
   const thirdsByGroup = new Map<string, TeamInfo>();
 
   for (const [group, teams] of teamsByGroup) {
+    if (!fullyFinishedGroups.has(group)) continue;
     const ranked = teams
       .map(t => ({ ...t, ...statsMap.get(t.id) ?? { pts: 0, gd: 0, gf: 0 }, group }))
       .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
     ranked.forEach((t, i) => {
       const info: TeamInfo = { ...t, rank: i + 1 };
       byGroupRank.set(`${group}-${i + 1}`, info);
-      if (i === 2 && fullyFinishedGroups.has(group)) thirdsByGroup.set(group, info);
+      if (i === 2) thirdsByGroup.set(group, info);
     });
   }
 
