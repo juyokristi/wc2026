@@ -3,11 +3,21 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
+interface ThirdPlaceEntry {
+  rank: number;
+  group: string;
+  name: string;
+  pts: number;
+  gd: number;
+  gf: number;
+}
+
 interface PopulateResult {
   assigned: number;
   skipped: number;
   details: string[];
   incompleteGroups: string[];
+  thirdPlaceRanking: ThirdPlaceEntry[];
 }
 
 export function AdminPopulateR32Button() {
@@ -52,10 +62,26 @@ export function AdminPopulateR32Button() {
           </p>
           {result.incompleteGroups.length > 0 && (
             <p style={{ color: "#FE7637" }}>
-              Skipped incomplete groups: {result.incompleteGroups.join(", ")}
+              Incomplete groups (best3rd slots pending): {result.incompleteGroups.join(", ")}
             </p>
           )}
-          <div className="space-y-0.5" style={{ color: "var(--muted-foreground)" }}>
+
+          {result.thirdPlaceRanking.length > 0 && (
+            <div className="pt-1">
+              <p className="font-semibold mb-1" style={{ color: "var(--muted-foreground)" }}>
+                3rd-place ranking (from finished groups)
+              </p>
+              <div className="space-y-0.5">
+                {result.thirdPlaceRanking.map((t) => (
+                  <p key={t.group} style={{ color: t.rank <= 8 ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                    {t.rank <= 8 ? "✓" : " "} #{t.rank} 3rd Group {t.group} — {t.name} ({t.pts}pts, {t.gd > 0 ? "+" : ""}{t.gd} GD, {t.gf} GF)
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-0.5 pt-1" style={{ color: "var(--muted-foreground)" }}>
             {result.details.map((d, i) => (
               <p key={i}>{d}</p>
             ))}
