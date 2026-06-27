@@ -17,24 +17,42 @@ type SpecFixed = { kind: "fixed"; rank: 1 | 2 | 3; group: string };
 type SpecBest3rd = { kind: "best3rd"; groups: string[] };
 type TeamSpec = SpecFixed | SpecBest3rd;
 
-// WC2026 R32 bracket formulas in match order (chronological, matches 73–88)
-// Verified against confirmed fixtures: France (1st I) vs Sweden (3rd F), Argentina (1st J) vs Cape Verde (3rd H)
+// WC2026 R32 bracket formulas in match order (matches 73–88), sourced from Wikipedia.
+// "best3rd" pools are from FIFA Annex C; greedy selection in match-number order
+// reproduces confirmed results (e.g. Match 74 Germany-Paraguay, Match 77 France-Sweden,
+// Match 81 USA-Bosnia, Match 86 Argentina-Cape Verde).
 const R32_FORMULAS: Array<{ home: TeamSpec; away: TeamSpec }> = [
+  // Match 73
   { home: { kind: "fixed", rank: 2, group: "A" }, away: { kind: "fixed", rank: 2, group: "B" } },
-  { home: { kind: "fixed", rank: 1, group: "E" }, away: { kind: "fixed", rank: 3, group: "D" } },
+  // Match 74
+  { home: { kind: "fixed", rank: 1, group: "E" }, away: { kind: "best3rd", groups: ["A", "B", "C", "D", "F"] } },
+  // Match 75
   { home: { kind: "fixed", rank: 1, group: "F" }, away: { kind: "fixed", rank: 2, group: "C" } },
+  // Match 76
   { home: { kind: "fixed", rank: 1, group: "C" }, away: { kind: "fixed", rank: 2, group: "F" } },
-  { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "fixed", rank: 3, group: "F" } },
+  // Match 77
+  { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "best3rd", groups: ["C", "D", "F", "G", "H"] } },
+  // Match 78
   { home: { kind: "fixed", rank: 2, group: "E" }, away: { kind: "fixed", rank: 2, group: "I" } },
-  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E"] } },
-  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "fixed", rank: 2, group: "H" } },
-  { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "fixed", rank: 3, group: "B" } },
-  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "I", "J"] } },
+  // Match 79
+  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E", "F", "H", "I"] } },
+  // Match 80
+  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["E", "H", "I", "J", "K"] } },
+  // Match 81
+  { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "best3rd", groups: ["B", "E", "F", "I", "J"] } },
+  // Match 82
+  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "E", "H", "I", "J"] } },
+  // Match 83
   { home: { kind: "fixed", rank: 2, group: "K" }, away: { kind: "fixed", rank: 2, group: "L" } },
+  // Match 84
   { home: { kind: "fixed", rank: 1, group: "H" }, away: { kind: "fixed", rank: 2, group: "J" } },
-  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["G", "J"] } },
-  { home: { kind: "fixed", rank: 1, group: "J" }, away: { kind: "fixed", rank: 3, group: "H" } },
-  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "L"] } },
+  // Match 85
+  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["E", "F", "G", "I", "J"] } },
+  // Match 86
+  { home: { kind: "fixed", rank: 1, group: "J" }, away: { kind: "fixed", rank: 2, group: "H" } },
+  // Match 87
+  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["D", "E", "I", "J", "L"] } },
+  // Match 88
   { home: { kind: "fixed", rank: 2, group: "D" }, away: { kind: "fixed", rank: 2, group: "G" } },
 ];
 
