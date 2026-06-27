@@ -85,18 +85,13 @@ function specLabel(spec: TeamSpec, team: TeamInfo | null): string {
   return `Best 3rd (${spec.groups.join("/")})`;
 }
 
-function resolveSpec(
-  spec: TeamSpec,
-  byGroupRank: Map<string, TeamInfo>,
-  fullyFinishedGroups: Set<string>
-): TeamInfo | null {
+function resolveSpec(spec: TeamSpec, byGroupRank: Map<string, TeamInfo>): TeamInfo | null {
   if (spec.kind === "fixed") {
     return byGroupRank.get(`${spec.group}-${spec.rank}`) ?? null;
   }
-  // best3rd: Annex C requires a full 495-combination lookup table to determine
-  // which specific group's team goes to each slot. Greedy "best from pool" gets
-  // this wrong. Return null so the slot keeps its label but no wrong team is set.
-  void fullyFinishedGroups;
+  // best3rd: Annex C requires a full lookup table to assign the correct group's
+  // team to each slot. Greedy "best from pool" gets it wrong. Return null so
+  // the slot keeps its placeholder label but no wrong team is assigned.
   return null;
 }
 
@@ -132,12 +127,14 @@ export async function POST() {
     }
   }
 
-  // Compute per-team stats (only from fully finished groups)
+  // Compute per-team stats from all FINISHED group matches.
+  // No "fully finished group" gate here — fixed rank-1/rank-2 assignments only need
+  // the current standings of their own group, not a cross-group comparison.
   const statsMap = new Map<string, { pts: number; gd: number; gf: number }>();
   for (const t of allTeams) statsMap.set(t.id, { pts: 0, gd: 0, gf: 0 });
 
   for (const m of allGroupMatches) {
-    if (!m.group || !fullyFinishedGroups.has(m.group)) continue;
+    if (!m.group) continue;
     if (!m.teamAId || !m.teamBId || m.scoreA === null || m.scoreB === null) continue;
     if (m.status !== "FINISHED") continue;
     const a = statsMap.get(m.teamAId)!;
@@ -151,17 +148,17 @@ export async function POST() {
     b.gf += m.scoreB;
   }
 
-  // Rank teams within each fully finished group only
   const teamsByGroup = new Map<string, typeof allTeams>();
   for (const t of allTeams) {
+    if (!t.group) continue;
     if (!teamsByGroup.has(t.group)) teamsByGroup.set(t.group, []);
     teamsByGroup.get(t.group)!.push(t);
   }
 
+  // byGroupRank uses current standings for every group (not gated on fully finished).
   const byGroupRank = new Map<string, TeamInfo>();
 
   for (const [group, teams] of teamsByGroup) {
-    if (!fullyFinishedGroups.has(group)) continue;
     const ranked = teams
       .map((t) => {
         const s = statsMap.get(t.id) ?? { pts: 0, gd: 0, gf: 0 };
@@ -231,8 +228,8 @@ export async function POST() {
       continue;
     }
 
-    const homeTeam = resolveSpec(formula.home, byGroupRank, fullyFinishedGroups);
-    const awayTeam = resolveSpec(formula.away, byGroupRank, fullyFinishedGroups);
+    const homeTeam = resolveSpec(formula.home, byGroupRank);
+    const awayTeam = resolveSpec(formula.away, byGroupRank);
 
     const homeLabel = specLabel(formula.home, homeTeam);
     const awayLabel = specLabel(formula.away, awayTeam);
