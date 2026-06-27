@@ -7,6 +7,7 @@ interface PopulateResult {
   assigned: number;
   skipped: number;
   details: string[];
+  incompleteGroups: string[];
 }
 
 export function AdminPopulateR32Button() {
@@ -49,6 +50,11 @@ export function AdminPopulateR32Button() {
           <p className="font-semibold" style={{ color: "#32BEBF" }}>
             Done — {result.assigned} slots assigned{result.skipped > 0 ? `, ${result.skipped} skipped` : ""}
           </p>
+          {result.incompleteGroups.length > 0 && (
+            <p style={{ color: "#FE7637" }}>
+              Skipped incomplete groups: {result.incompleteGroups.join(", ")}
+            </p>
+          )}
           <div className="space-y-0.5" style={{ color: "var(--muted-foreground)" }}>
             {result.details.map((d, i) => (
               <p key={i}>{d}</p>

@@ -81,17 +81,36 @@ export async function POST() {
     select: { id: true, code: true, name: true, group: true },
   });
 
-  const finishedGroupMatches = await prisma.match.findMany({
-    where: { stage: "GROUP", status: "FINISHED" },
-    select: { teamAId: true, teamBId: true, scoreA: true, scoreB: true },
+  // Determine which groups are fully finished (all 6 matches done)
+  const allGroupMatches = await prisma.match.findMany({
+    where: { stage: "GROUP" },
+    select: { group: true, status: true, teamAId: true, teamBId: true, scoreA: true, scoreB: true },
   });
 
-  // Compute per-team stats
+  const groupMatchCount = new Map<string, number>();
+  const groupFinishedCount = new Map<string, number>();
+  for (const m of allGroupMatches) {
+    if (!m.group) continue;
+    groupMatchCount.set(m.group, (groupMatchCount.get(m.group) ?? 0) + 1);
+    if (m.status === "FINISHED") {
+      groupFinishedCount.set(m.group, (groupFinishedCount.get(m.group) ?? 0) + 1);
+    }
+  }
+  const fullyFinishedGroups = new Set<string>();
+  for (const [group, total] of groupMatchCount) {
+    if ((groupFinishedCount.get(group) ?? 0) >= total) {
+      fullyFinishedGroups.add(group);
+    }
+  }
+
+  // Compute per-team stats (only from fully finished groups)
   const statsMap = new Map<string, { pts: number; gd: number; gf: number }>();
   for (const t of allTeams) statsMap.set(t.id, { pts: 0, gd: 0, gf: 0 });
 
-  for (const m of finishedGroupMatches) {
+  for (const m of allGroupMatches) {
+    if (!m.group || !fullyFinishedGroups.has(m.group)) continue;
     if (!m.teamAId || !m.teamBId || m.scoreA === null || m.scoreB === null) continue;
+    if (m.status !== "FINISHED") continue;
     const a = statsMap.get(m.teamAId)!;
     const b = statsMap.get(m.teamBId)!;
     if (m.scoreA > m.scoreB) { a.pts += 3; }
@@ -103,7 +122,7 @@ export async function POST() {
     b.gf += m.scoreB;
   }
 
-  // Rank teams within each group
+  // Rank teams within each fully finished group only
   const teamsByGroup = new Map<string, typeof allTeams>();
   for (const t of allTeams) {
     if (!teamsByGroup.has(t.group)) teamsByGroup.set(t.group, []);
@@ -114,6 +133,7 @@ export async function POST() {
   const thirdsByGroup = new Map<string, TeamInfo>();
 
   for (const [group, teams] of teamsByGroup) {
+    if (!fullyFinishedGroups.has(group)) continue; // skip incomplete groups
     const ranked = teams
       .map((t) => {
         const s = statsMap.get(t.id) ?? { pts: 0, gd: 0, gf: 0 };
@@ -177,5 +197,9 @@ export async function POST() {
     details.push(`#${slot.matchNumber}: ${homeLabel} vs ${awayLabel}`);
   }
 
-  return NextResponse.json({ assigned, skipped, details });
+  const incompleteGroups = [...groupMatchCount.keys()]
+    .filter((g) => !fullyFinishedGroups.has(g))
+    .sort();
+
+  return NextResponse.json({ assigned, skipped, details, incompleteGroups });
 }
