@@ -415,8 +415,13 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                   );
                 })()}
                 {isKnockout && (() => {
-                  const picksA = predictions.filter((p) => p.qualifierPick === match.teamAId).length;
-                  const picksB = predictions.filter((p) => p.qualifierPick === match.teamBId).length;
+                  // Infer qualifier from score when not explicitly set (draws with no pick are excluded)
+                  const effectivePick = (p: PredictionEntry) =>
+                    p.qualifierPick ??
+                    (p.predictedA > p.predictedB ? match.teamAId :
+                     p.predictedB > p.predictedA ? match.teamBId : null);
+                  const picksA = predictions.filter((p) => effectivePick(p) === match.teamAId).length;
+                  const picksB = predictions.filter((p) => effectivePick(p) === match.teamBId).length;
                   const totalPicks = picksA + picksB;
                   if (totalPicks === 0) return null;
                   const pctA = Math.round((picksA / totalPicks) * 100);
@@ -439,25 +444,32 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                     </div>
                   );
                 })()}
-                {predictions.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span style={{ color: "var(--muted-foreground)" }}>{p.userName}</span>
-                    <span className="tabular-nums font-medium flex items-center gap-1.5" style={{ color: "var(--foreground)" }}>
-                      {p.predictedA}–{p.predictedB}
-                      {isKnockout && p.qualifierPick && (
-                        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                          →{" "}
-                          {p.qualifierPick === match.teamAId
-                            ? `${teamAFlag} ${match.teamA?.code}`
-                            : `${teamBFlag} ${match.teamB?.code}`}
-                        </span>
-                      )}
-                      {p.pointsEarned !== null && (
-                        <span className="ml-0.5" style={{ color: "#9685E4" }}>{p.pointsEarned}pts</span>
-                      )}
-                    </span>
-                  </div>
-                ))}
+                {predictions.map((p, i) => {
+                  const effPick = isKnockout
+                    ? (p.qualifierPick ??
+                       (p.predictedA > p.predictedB ? match.teamAId :
+                        p.predictedB > p.predictedA ? match.teamBId : null))
+                    : null;
+                  return (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span style={{ color: "var(--muted-foreground)" }}>{p.userName}</span>
+                      <span className="tabular-nums font-medium flex items-center gap-1.5" style={{ color: "var(--foreground)" }}>
+                        {p.predictedA}–{p.predictedB}
+                        {effPick && (
+                          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                            →{" "}
+                            {effPick === match.teamAId
+                              ? `${teamAFlag} ${match.teamA?.code}`
+                              : `${teamBFlag} ${match.teamB?.code}`}
+                          </span>
+                        )}
+                        {p.pointsEarned !== null && (
+                          <span className="ml-0.5" style={{ color: "#9685E4" }}>{p.pointsEarned}pts</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </>
             ) : (
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>No predictions yet.</p>
