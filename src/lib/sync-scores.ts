@@ -41,7 +41,9 @@ interface FdMatch {
 export async function syncScores(): Promise<{
   scoresUpdated: number;
   kickoffsFixed: number;
+  knockoutAssigned: number;
   checked: number;
+  unseenFdStages: string[];
 }> {
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) {
@@ -182,8 +184,8 @@ export async function syncScores(): Promise<{
   }
 
   // Sync knockout team assignments for matches still missing a team.
-  // Groups by STAGE (not day) so that slots with wrong kickoff times (from prior
-  // bugs) still get correctly paired with the right FD match.
+  // Uses kickoff-proximity matching (stage-agnostic) so unknown FD stage names
+  // don't silently drop matches from assignment.
   const knockoutPending = await prisma.match.findMany({
     where: {
       stage: { not: "GROUP" },
@@ -193,66 +195,71 @@ export async function syncScores(): Promise<{
     select: { id: true, kickoff: true, stage: true },
   });
 
+  let knockoutAssigned = 0;
+  const unseenFdStagesSet = new Set<string>();
+
   if (knockoutPending.length > 0) {
     const allTeams = await prisma.team.findMany({ select: { id: true, code: true } });
     const teamByCode = new Map(allTeams.map((t) => [t.code, t.id]));
 
-    // Collect FD scheduled matches that have real (non-TBD) teams, grouped by mapped stage.
-    // Skip matches already assigned to a DB slot (byTeamPair).
-    const fdKnownByStage = new Map<string, FdMatch[]>();
+    // Collect FD non-group scheduled matches with real (non-TBD) teams not yet in DB.
+    const fdCandidates: Array<{ fd: FdMatch; homeTla: string; awayTla: string }> = [];
     for (const fd of fdMatches) {
       if (fd.status === "FINISHED" || fd.status === "IN_PLAY" || fd.status === "PAUSED") continue;
       const homeTla = normalizeTla(fd.homeTeam?.tla?.toUpperCase() ?? "");
       const awayTla = normalizeTla(fd.awayTeam?.tla?.toUpperCase() ?? "");
       if (!homeTla || !awayTla || homeTla === "TBD" || awayTla === "TBD") continue;
       if (!teamByCode.has(homeTla) || !teamByCode.has(awayTla)) continue;
-      if (byTeamPair.has(`${homeTla}-${awayTla}`)) continue; // already in DB
-      const dbStage = FD_STAGE_MAP[fd.stage];
-      if (!dbStage) continue;
-      if (!fdKnownByStage.has(dbStage)) fdKnownByStage.set(dbStage, []);
-      fdKnownByStage.get(dbStage)!.push(fd);
+      if (byTeamPair.has(`${homeTla}-${awayTla}`)) continue; // already assigned in DB
+      if (fd.stage === "GROUP_STAGE" || fd.stage === "GROUP") continue;
+      if (!FD_STAGE_MAP[fd.stage]) unseenFdStagesSet.add(fd.stage);
+      fdCandidates.push({ fd, homeTla, awayTla });
     }
 
-    // Group pending DB slots by stage
-    const dbPendingByStage = new Map<string, typeof knockoutPending>();
-    for (const k of knockoutPending) {
-      if (!dbPendingByStage.has(k.stage)) dbPendingByStage.set(k.stage, []);
-      dbPendingByStage.get(k.stage)!.push(k);
-    }
-
-    // Within each stage sort both sides by kickoff time and pair positionally.
-    // Sorting by kickoff (even approximate DB times) preserves relative match order
-    // within a stage so the right teams go to the right slots.
-    for (const [stage, fdList] of fdKnownByStage) {
-      const dbList = dbPendingByStage.get(stage);
-      if (!dbList || dbList.length === 0) continue;
-
-      const sortedFd = [...fdList].sort(
-        (a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()
-      );
-      const sortedDb = [...dbList].sort(
+    if (fdCandidates.length > 0) {
+      // Sort both pools by kickoff time; greedily match each FD candidate to the
+      // closest pending DB slot within 15 days.
+      const MAX_DIFF_MS = 15 * 24 * 60 * 60 * 1000;
+      const pendingPool = [...knockoutPending].sort(
         (a, b) => a.kickoff.getTime() - b.kickoff.getTime()
       );
+      const sortedFd = [...fdCandidates].sort(
+        (a, b) => new Date(a.fd.utcDate).getTime() - new Date(b.fd.utcDate).getTime()
+      );
 
-      for (let i = 0; i < Math.min(sortedFd.length, sortedDb.length); i++) {
-        const fd = sortedFd[i];
-        const db = sortedDb[i];
-        const homeTla = normalizeTla(fd.homeTeam.tla.toUpperCase());
-        const awayTla = normalizeTla(fd.awayTeam.tla.toUpperCase());
-        const homeTeamId = teamByCode.get(homeTla)!;
-        const awayTeamId = teamByCode.get(awayTla)!;
+      for (const { fd, homeTla, awayTla } of sortedFd) {
+        const fdT = new Date(fd.utcDate).getTime();
+        let bestIdx = -1;
+        let bestDiff = MAX_DIFF_MS + 1;
+        for (let i = 0; i < pendingPool.length; i++) {
+          const diff = Math.abs(pendingPool[i].kickoff.getTime() - fdT);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            bestIdx = i;
+          }
+        }
+        if (bestIdx === -1) continue;
+
+        const db = pendingPool.splice(bestIdx, 1)[0];
         await prisma.match.update({
           where: { id: db.id },
           data: {
-            teamAId: homeTeamId,
-            teamBId: awayTeamId,
+            teamAId: teamByCode.get(homeTla)!,
+            teamBId: teamByCode.get(awayTla)!,
             kickoff: new Date(fd.utcDate),
             ...(fd.venue ? { venue: fd.venue } : {}),
           },
         });
+        knockoutAssigned++;
       }
     }
   }
 
-  return { scoresUpdated, kickoffsFixed, checked: fdMatches.length };
+  return {
+    scoresUpdated,
+    kickoffsFixed,
+    knockoutAssigned,
+    checked: fdMatches.length,
+    unseenFdStages: [...unseenFdStagesSet],
+  };
 }

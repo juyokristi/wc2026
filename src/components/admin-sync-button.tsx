@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 interface SyncResult {
   scoresUpdated: number;
   kickoffsFixed: number;
+  knockoutAssigned: number;
   checked: number;
+  unseenFdStages: string[];
 }
 
 interface AdminSyncButtonProps {
@@ -54,9 +56,13 @@ export function AdminSyncButton({ doSync }: AdminSyncButtonProps) {
             Sync complete
           </p>
           <p className="text-sm mt-1" style={{ color: "var(--foreground)" }}>
-            {result.scoresUpdated} scores updated, {result.kickoffsFixed}{" "}
-            kickoffs fixed, {result.checked} matches checked
+            {result.scoresUpdated} scores updated · {result.kickoffsFixed} kickoffs fixed · {result.knockoutAssigned} knockout slots assigned · {result.checked} matches checked
           </p>
+          {result.unseenFdStages.length > 0 && (
+            <p className="text-xs mt-1" style={{ color: "#FE7637" }}>
+              Unknown FD stages (add to FD_STAGE_MAP): {result.unseenFdStages.join(", ")}
+            </p>
+          )}
         </div>
       )}
 
