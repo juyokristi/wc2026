@@ -6,6 +6,7 @@ import { AdminFixPairingsButton } from "@/components/admin-fix-pairings-button";
 import { AdminFixKnockoutsButton } from "@/components/admin-fix-knockouts-button";
 import { AdminFdDebugButton } from "@/components/admin-fd-debug-button";
 import { AdminRebuildBracketButton } from "@/components/admin-rebuild-bracket-button";
+import { AdminPopulateR32Button } from "@/components/admin-populate-r32-button";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -147,6 +148,34 @@ export default async function AdminPage() {
         </div>
 
         <AdminFdDebugButton />
+      </div>
+
+      {/* Populate R32 from DB standings */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div>
+          <h2
+            className="text-base font-semibold"
+            style={{ color: "var(--foreground)" }}
+          >
+            Populate R32 from standings
+          </h2>
+          <p
+            className="text-sm mt-0.5"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Assigns all 16 R32 slots using the correct WC2026 bracket structure computed
+            directly from DB group standings. No FD API needed. Overwrites existing labels
+            and team assignments (except finished/live matches).
+          </p>
+        </div>
+
+        <AdminPopulateR32Button />
       </div>
 
       {/* Rebuild bracket structure from FD */}
