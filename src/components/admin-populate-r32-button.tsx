@@ -14,6 +14,7 @@ interface ThirdPlaceEntry {
 
 interface PopulateResult {
   assigned: number;
+  kickoffsFixed: number;
   skipped: number;
   details: string[];
   incompleteGroups: string[];
@@ -58,7 +59,7 @@ export function AdminPopulateR32Button() {
           style={{ backgroundColor: "rgba(50,190,191,0.08)", border: "1px solid rgba(50,190,191,0.25)" }}
         >
           <p className="font-semibold" style={{ color: "#32BEBF" }}>
-            Done — {result.assigned} slots assigned{result.skipped > 0 ? `, ${result.skipped} skipped` : ""}
+            Done — {result.assigned} slots assigned · {result.kickoffsFixed} kickoffs updated{result.skipped > 0 ? ` · ${result.skipped} skipped` : ""}
           </p>
           {result.incompleteGroups.length > 0 && (
             <p style={{ color: "#FE7637" }}>

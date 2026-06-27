@@ -190,10 +190,39 @@ export async function POST() {
     );
   }
 
+  // Fetch FD schedule once — used to correct kickoff times after team assignment.
+  // Failures here are non-fatal; teams will still be assigned.
+  const apiKey = process.env.FOOTBALL_DATA_API_KEY;
+  let fdByTeamPair = new Map<string, { utcDate: string; venue: string | null }>();
+  if (apiKey) {
+    try {
+      const fdRes = await fetch("https://api.football-data.org/v4/competitions/WC/matches", {
+        headers: { "X-Auth-Token": apiKey },
+        cache: "no-store",
+      });
+      if (fdRes.ok) {
+        const { matches: fdMatches } = (await fdRes.json()) as {
+          matches: Array<{ utcDate: string; stage: string; venue: string | null; homeTeam: { tla: string }; awayTeam: { tla: string } }>;
+        };
+        for (const m of fdMatches) {
+          const h = (m.homeTeam?.tla ?? "").toUpperCase();
+          const a = (m.awayTeam?.tla ?? "").toUpperCase();
+          if (!h || !a) continue;
+          const entry = { utcDate: m.utcDate, venue: m.venue };
+          fdByTeamPair.set(`${h}-${a}`, entry);
+          fdByTeamPair.set(`${a}-${h}`, entry);
+        }
+      }
+    } catch {
+      // non-fatal
+    }
+  }
+
   // Tracks all team IDs already assigned (fixed or best3rd) so the greedy
   // doesn't double-assign a 3rd-place team that was already committed via a fixed slot.
   const assignedBest3rd = new Set<string>();
   let assigned = 0;
+  let kickoffsFixed = 0;
   let skipped = 0;
   const details: string[] = [];
 
@@ -218,15 +247,33 @@ export async function POST() {
     const homeLabel = specLabel(formula.home, homeTeam);
     const awayLabel = specLabel(formula.away, awayTeam);
 
-    await prisma.match.update({
-      where: { id: slot.id },
-      data: {
-        teamAId: homeTeam?.id ?? null,
-        teamBId: awayTeam?.id ?? null,
-        teamALabel: homeLabel,
-        teamBLabel: awayLabel,
-      },
-    });
+    // Look up the correct kickoff from FD if both teams are known
+    const updateData: {
+      teamAId: string | null;
+      teamBId: string | null;
+      teamALabel: string;
+      teamBLabel: string;
+      kickoff?: Date;
+      venue?: string;
+    } = {
+      teamAId: homeTeam?.id ?? null,
+      teamBId: awayTeam?.id ?? null,
+      teamALabel: homeLabel,
+      teamBLabel: awayLabel,
+    };
+
+    if (homeTeam && awayTeam) {
+      const fdEntry =
+        fdByTeamPair.get(`${homeTeam.code}-${awayTeam.code}`) ??
+        fdByTeamPair.get(`${awayTeam.code}-${homeTeam.code}`);
+      if (fdEntry) {
+        updateData.kickoff = new Date(fdEntry.utcDate);
+        if (fdEntry.venue) updateData.venue = fdEntry.venue;
+        kickoffsFixed++;
+      }
+    }
+
+    await prisma.match.update({ where: { id: slot.id }, data: updateData });
 
     if (homeTeam && awayTeam) assigned++;
     details.push(`#${slot.matchNumber}: ${homeLabel} vs ${awayLabel}`);
@@ -248,5 +295,5 @@ export async function POST() {
       gf: t.gf,
     }));
 
-  return NextResponse.json({ assigned, skipped, details, incompleteGroups, thirdPlaceRanking });
+  return NextResponse.json({ assigned, kickoffsFixed, skipped, details, incompleteGroups, thirdPlaceRanking });
 }
