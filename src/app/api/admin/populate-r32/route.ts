@@ -90,21 +90,26 @@ function resolveFixed(spec: SpecFixed, byGroupRank: Map<string, TeamInfo>): Team
 
 // A team is mathematically guaranteed rank R if:
 //   (a) no other team can EXCEED their current pts (strictly), and
-//   (b) no other team with remaining games can TIE their current pts
-//       (a tie would require GD/GF tie-breaking which isn't yet deterministic).
+//   (b) every other team that COULD tie their pts on points has already LOST the
+//       head-to-head match against this team (FIFA WC first tiebreaker = H2H pts).
+//       If H2H hasn't been played yet, the tie is unresolvable → not guaranteed.
 function isRankGuaranteedByPoints(
   targetRank: number,
   teamPts: number,
-  otherTeams: { pts: number; remaining: number }[]
+  otherTeams: { id: string; pts: number; remaining: number }[],
+  h2hWon: Set<string> // IDs of teams this team has BEATEN (3 H2H pts)
 ): boolean {
   let canBeat = 0;
-  let canFutureTie = 0;
+  let unresolvableTie = 0;
   for (const o of otherTeams) {
     const maxPts = o.pts + 3 * o.remaining;
     if (maxPts > teamPts) canBeat++;
-    else if (maxPts === teamPts && o.remaining > 0) canFutureTie++;
+    else if (maxPts === teamPts && o.remaining > 0) {
+      // Could tie on points — check if H2H already resolves this in our favour
+      if (!h2hWon.has(o.id)) unresolvableTie++;
+    }
   }
-  return canBeat < targetRank && canFutureTie === 0;
+  return canBeat < targetRank && unresolvableTie === 0;
 }
 
 // Bipartite matching (augmenting-path DFS) to assign best3rd teams to slots.
@@ -233,6 +238,21 @@ export async function POST() {
     if (m.teamBId) remainingByTeam.set(m.teamBId, (remainingByTeam.get(m.teamBId) ?? 0) + 1);
   }
 
+  // H2H wins within each group: teamId → set of opponent IDs that team beat
+  const h2hWins = new Map<string, Set<string>>();
+  for (const m of allGroupMatches) {
+    if (m.status !== "FINISHED" || m.scoreA === null || m.scoreB === null) continue;
+    if (!m.teamAId || !m.teamBId) continue;
+    if (m.scoreA > m.scoreB) {
+      if (!h2hWins.has(m.teamAId)) h2hWins.set(m.teamAId, new Set());
+      h2hWins.get(m.teamAId)!.add(m.teamBId);
+    } else if (m.scoreB > m.scoreA) {
+      if (!h2hWins.has(m.teamBId)) h2hWins.set(m.teamBId, new Set());
+      h2hWins.get(m.teamBId)!.add(m.teamAId);
+    }
+    // draws: H2H pts equal → treated as unresolved (conservative)
+  }
+
   const teamsByGroup = new Map<string, typeof allTeams>();
   for (const t of allTeams) {
     if (!t.group) continue;
@@ -258,9 +278,11 @@ export async function POST() {
         rank,
         t.pts,
         ranked.filter(o => o.id !== t.id).map(o => ({
+          id: o.id,
           pts: o.pts,
           remaining: remainingByTeam.get(o.id) ?? 0,
-        }))
+        })),
+        h2hWins.get(t.id) ?? new Set()
       );
       if (guaranteed) byGroupRank.set(`${group}-${rank}`, info);
       if (isFullyDone && rank === 3) thirdsByGroup.set(group, info);
