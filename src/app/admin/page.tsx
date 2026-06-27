@@ -4,6 +4,7 @@ import { syncScores } from "@/lib/sync-scores";
 import { AdminSyncButton } from "@/components/admin-sync-button";
 import { AdminFixPairingsButton } from "@/components/admin-fix-pairings-button";
 import { AdminFixKnockoutsButton } from "@/components/admin-fix-knockouts-button";
+import { AdminFdDebugButton } from "@/components/admin-fd-debug-button";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -119,6 +120,32 @@ export default async function AdminPage() {
         </div>
 
         <AdminFixKnockoutsButton />
+      </div>
+
+      {/* FD API diagnostic */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div>
+          <h2
+            className="text-base font-semibold"
+            style={{ color: "var(--foreground)" }}
+          >
+            FD API diagnostic
+          </h2>
+          <p
+            className="text-sm mt-0.5"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Shows what football-data.org has confirmed for knockout fixtures — which teams are TBD, which are ready to assign, and which codes are missing from our DB.
+          </p>
+        </div>
+
+        <AdminFdDebugButton />
       </div>
     </div>
   );
