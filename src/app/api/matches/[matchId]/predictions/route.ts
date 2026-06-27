@@ -33,6 +33,7 @@ export async function GET(
       predictedA: p.predictedA,
       predictedB: p.predictedB,
       pointsEarned: p.pointsEarned,
+      qualifierPick: p.qualifierPick,
     }))
   );
 }

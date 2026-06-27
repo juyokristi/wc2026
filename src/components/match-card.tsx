@@ -10,6 +10,7 @@ interface PredictionEntry {
   predictedA: number;
   predictedB: number;
   pointsEarned: number | null;
+  qualifierPick: string | null;
 }
 
 interface MatchCardProps {
@@ -165,12 +166,25 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
     }
   }
 
+  function applyAutoQualifier(rawA: string, rawB: string) {
+    if (!isKnockout || !teamsKnown) return;
+    const a = parseInt(rawA);
+    const b = parseInt(rawB);
+    if (isNaN(a) || isNaN(b)) return;
+    if (a > b) setQualifierPick(match.teamAId!);
+    else if (b > a) setQualifierPick(match.teamBId!);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const a = parseInt(scoreA);
     const b = parseInt(scoreB);
     if (isNaN(a) || isNaN(b) || a < 0 || b < 0) {
       setError("Enter valid scores");
+      return;
+    }
+    if (isKnockout && teamsKnown && a === b && !qualifierPick) {
+      setError("Pick who advances in extra time");
       return;
     }
     await save(a, b, qualifierPick);
@@ -249,7 +263,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                 min={0}
                 max={99}
                 value={scoreA}
-                onChange={(e) => setScoreA(e.target.value)}
+                onChange={(e) => { setScoreA(e.target.value); applyAutoQualifier(e.target.value, scoreB); }}
                 className="w-12 text-center px-1 h-9 sm:h-8"
                 style={{ borderRadius: "8px", fontSize: "16px" }}
                 disabled={saving}
@@ -261,7 +275,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                 min={0}
                 max={99}
                 value={scoreB}
-                onChange={(e) => setScoreB(e.target.value)}
+                onChange={(e) => { setScoreB(e.target.value); applyAutoQualifier(scoreA, e.target.value); }}
                 className="w-12 text-center px-1 h-9 sm:h-8"
                 style={{ borderRadius: "8px", fontSize: "16px" }}
                 disabled={saving}
@@ -400,13 +414,46 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                     </div>
                   );
                 })()}
+                {isKnockout && (() => {
+                  const picksA = predictions.filter((p) => p.qualifierPick === match.teamAId).length;
+                  const picksB = predictions.filter((p) => p.qualifierPick === match.teamBId).length;
+                  const totalPicks = picksA + picksB;
+                  if (totalPicks === 0) return null;
+                  const pctA = Math.round((picksA / totalPicks) * 100);
+                  const pctB = Math.round((picksB / totalPicks) * 100);
+                  return (
+                    <div className="mb-2">
+                      <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Advances</p>
+                      <div className="flex rounded-xl overflow-hidden" style={{ height: "24px", gap: "2px" }}>
+                        {picksA > 0 && (
+                          <div className="flex items-center justify-center overflow-hidden shrink-0" style={{ width: `${(picksA / totalPicks) * 100}%`, backgroundColor: "rgba(150,133,228,0.6)" }}>
+                            {pctA >= 15 && <span className="text-xs font-semibold truncate px-2" style={{ color: "white" }}>{pctA}% {match.teamA?.code}</span>}
+                          </div>
+                        )}
+                        {picksB > 0 && (
+                          <div className="flex items-center justify-center overflow-hidden shrink-0" style={{ width: `${(picksB / totalPicks) * 100}%`, backgroundColor: "rgba(254,118,55,0.6)" }}>
+                            {pctB >= 15 && <span className="text-xs font-semibold truncate px-2" style={{ color: "white" }}>{pctB}% {match.teamB?.code}</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {predictions.map((p, i) => (
                   <div key={i} className="flex items-center justify-between text-xs">
                     <span style={{ color: "var(--muted-foreground)" }}>{p.userName}</span>
-                    <span className="tabular-nums font-medium" style={{ color: "var(--foreground)" }}>
+                    <span className="tabular-nums font-medium flex items-center gap-1.5" style={{ color: "var(--foreground)" }}>
                       {p.predictedA}–{p.predictedB}
+                      {isKnockout && p.qualifierPick && (
+                        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                          →{" "}
+                          {p.qualifierPick === match.teamAId
+                            ? `${teamAFlag} ${match.teamA?.code}`
+                            : `${teamBFlag} ${match.teamB?.code}`}
+                        </span>
+                      )}
                       {p.pointsEarned !== null && (
-                        <span className="ml-1.5" style={{ color: "#9685E4" }}>{p.pointsEarned}pts</span>
+                        <span className="ml-0.5" style={{ color: "#9685E4" }}>{p.pointsEarned}pts</span>
                       )}
                     </span>
                   </div>
