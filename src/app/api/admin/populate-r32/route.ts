@@ -88,25 +88,15 @@ function specLabel(spec: TeamSpec, team: TeamInfo | null): string {
 function resolveSpec(
   spec: TeamSpec,
   byGroupRank: Map<string, TeamInfo>,
-  thirdsByGroup: Map<string, TeamInfo>,
-  assignedBest3rd: Set<string>,
   fullyFinishedGroups: Set<string>
 ): TeamInfo | null {
   if (spec.kind === "fixed") {
     return byGroupRank.get(`${spec.group}-${spec.rank}`) ?? null;
   }
-  // Only assign when every group in the pool has finished all its matches
-  const poolReady = spec.groups.every((g) => fullyFinishedGroups.has(g));
-  if (!poolReady) return null;
-
-  const candidates = spec.groups
-    .map((g) => thirdsByGroup.get(g))
-    .filter((t): t is TeamInfo => !!t && !assignedBest3rd.has(t.id))
-    .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
-  if (candidates[0]) {
-    assignedBest3rd.add(candidates[0].id);
-    return candidates[0];
-  }
+  // best3rd: Annex C requires a full 495-combination lookup table to determine
+  // which specific group's team goes to each slot. Greedy "best from pool" gets
+  // this wrong. Return null so the slot keeps its label but no wrong team is set.
+  void fullyFinishedGroups;
   return null;
 }
 
@@ -169,10 +159,9 @@ export async function POST() {
   }
 
   const byGroupRank = new Map<string, TeamInfo>();
-  const thirdsByGroup = new Map<string, TeamInfo>();
 
   for (const [group, teams] of teamsByGroup) {
-    if (!fullyFinishedGroups.has(group)) continue; // skip incomplete groups
+    if (!fullyFinishedGroups.has(group)) continue;
     const ranked = teams
       .map((t) => {
         const s = statsMap.get(t.id) ?? { pts: 0, gd: 0, gf: 0 };
@@ -181,9 +170,7 @@ export async function POST() {
       .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
 
     ranked.forEach((t, i) => {
-      const info: TeamInfo = { ...t, rank: i + 1 };
-      byGroupRank.set(`${group}-${i + 1}`, info);
-      if (i === 2) thirdsByGroup.set(group, info);
+      byGroupRank.set(`${group}-${i + 1}`, { ...t, rank: i + 1 });
     });
   }
 
@@ -229,9 +216,6 @@ export async function POST() {
     }
   }
 
-  // Tracks all team IDs already assigned (fixed or best3rd) so the greedy
-  // doesn't double-assign a 3rd-place team that was already committed via a fixed slot.
-  const assignedBest3rd = new Set<string>();
   let assigned = 0;
   let kickoffsFixed = 0;
   let skipped = 0;
@@ -247,13 +231,8 @@ export async function POST() {
       continue;
     }
 
-    const homeTeam = resolveSpec(formula.home, byGroupRank, thirdsByGroup, assignedBest3rd, fullyFinishedGroups);
-    const awayTeam = resolveSpec(formula.away, byGroupRank, thirdsByGroup, assignedBest3rd, fullyFinishedGroups);
-
-    // Register any fixed rank-3 assignment so the greedy pools exclude it
-    if (formula.away.kind === "fixed" && formula.away.rank === 3 && awayTeam) {
-      assignedBest3rd.add(awayTeam.id);
-    }
+    const homeTeam = resolveSpec(formula.home, byGroupRank, fullyFinishedGroups);
+    const awayTeam = resolveSpec(formula.away, byGroupRank, fullyFinishedGroups);
 
     const homeLabel = specLabel(formula.home, homeTeam);
     const awayLabel = specLabel(formula.away, awayTeam);
@@ -297,17 +276,5 @@ export async function POST() {
     .filter((g) => !fullyFinishedGroups.has(g))
     .sort();
 
-  // Build global 3rd-place ranking for visibility
-  const thirdPlaceRanking = [...thirdsByGroup.values()]
-    .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
-    .map((t, i) => ({
-      rank: i + 1,
-      group: t.group,
-      name: t.name,
-      pts: t.pts,
-      gd: t.gd,
-      gf: t.gf,
-    }));
-
-  return NextResponse.json({ assigned, kickoffsFixed, skipped, details, incompleteGroups, thirdPlaceRanking });
+  return NextResponse.json({ assigned, kickoffsFixed, skipped, details, incompleteGroups, thirdPlaceRanking: [] });
 }
