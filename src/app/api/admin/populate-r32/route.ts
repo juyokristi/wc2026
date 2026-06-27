@@ -18,41 +18,46 @@ type SpecBest3rd = { kind: "best3rd"; groups: string[] };
 type TeamSpec = SpecFixed | SpecBest3rd;
 
 // WC2026 R32 bracket formulas in match order (matches 73–88), sourced from Wikipedia.
-// "best3rd" pools are from FIFA Annex C; greedy selection in match-number order
-// reproduces confirmed results (e.g. Match 74 Germany-Paraguay, Match 77 France-Sweden,
-// Match 81 USA-Bosnia, Match 86 Argentina-Cape Verde).
+//
+// Matches 74, 77, 81 use fixed rank-3 slots (confirmed real results: Germany–Paraguay,
+// France–Sweden, USA–Bosnia). Using "best3rd" for these caused the greedy to swap them
+// because Sweden (3rd F) ranks higher globally than Paraguay (3rd D) and F appears in
+// both the Match 74 pool and Match 77 pool.
+//
+// The five remaining dynamic best3rd slots use the NARROWED pools that Wikipedia shows
+// as common across all currently possible Annex C combinations.
 const R32_FORMULAS: Array<{ home: TeamSpec; away: TeamSpec }> = [
-  // Match 73
+  // Match 73: 2nd A vs 2nd B
   { home: { kind: "fixed", rank: 2, group: "A" }, away: { kind: "fixed", rank: 2, group: "B" } },
-  // Match 74
-  { home: { kind: "fixed", rank: 1, group: "E" }, away: { kind: "best3rd", groups: ["A", "B", "C", "D", "F"] } },
-  // Match 75
+  // Match 74: 1st E vs 3rd D  (Germany vs Paraguay — fixed, not greedy)
+  { home: { kind: "fixed", rank: 1, group: "E" }, away: { kind: "fixed", rank: 3, group: "D" } },
+  // Match 75: 1st F vs 2nd C
   { home: { kind: "fixed", rank: 1, group: "F" }, away: { kind: "fixed", rank: 2, group: "C" } },
-  // Match 76
+  // Match 76: 1st C vs 2nd F
   { home: { kind: "fixed", rank: 1, group: "C" }, away: { kind: "fixed", rank: 2, group: "F" } },
-  // Match 77
-  { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "best3rd", groups: ["C", "D", "F", "G", "H"] } },
-  // Match 78
+  // Match 77: 1st I vs 3rd F  (France vs Sweden — fixed, not greedy)
+  { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "fixed", rank: 3, group: "F" } },
+  // Match 78: 2nd E vs 2nd I
   { home: { kind: "fixed", rank: 2, group: "E" }, away: { kind: "fixed", rank: 2, group: "I" } },
-  // Match 79
-  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E", "F", "H", "I"] } },
-  // Match 80
-  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["E", "H", "I", "J", "K"] } },
-  // Match 81
-  { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "best3rd", groups: ["B", "E", "F", "I", "J"] } },
-  // Match 82
-  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "E", "H", "I", "J"] } },
-  // Match 83
+  // Match 79: 1st A vs best3rd(C/E) — narrowed from original (C/E/F/H/I)
+  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E"] } },
+  // Match 80: 1st L vs best3rd(I/J/K) — narrowed from original (E/H/I/J/K)
+  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["I", "J", "K"] } },
+  // Match 81: 1st D vs 3rd B  (USA vs Bosnia — fixed, not greedy)
+  { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "fixed", rank: 3, group: "B" } },
+  // Match 82: 1st G vs best3rd(A/I/J) — narrowed from original (A/E/H/I/J)
+  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "I", "J"] } },
+  // Match 83: 2nd K vs 2nd L
   { home: { kind: "fixed", rank: 2, group: "K" }, away: { kind: "fixed", rank: 2, group: "L" } },
-  // Match 84
+  // Match 84: 1st H vs 2nd J
   { home: { kind: "fixed", rank: 1, group: "H" }, away: { kind: "fixed", rank: 2, group: "J" } },
-  // Match 85
-  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["E", "F", "G", "I", "J"] } },
-  // Match 86
+  // Match 85: 1st B vs best3rd(G/J) — narrowed from original (E/F/G/I/J)
+  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["G", "J"] } },
+  // Match 86: 1st J vs 2nd H  (Argentina vs Cape Verde)
   { home: { kind: "fixed", rank: 1, group: "J" }, away: { kind: "fixed", rank: 2, group: "H" } },
-  // Match 87
-  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["D", "E", "I", "J", "L"] } },
-  // Match 88
+  // Match 87: 1st K vs best3rd(E/I/L) — narrowed from original (D/E/I/J/L)
+  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "L"] } },
+  // Match 88: 2nd D vs 2nd G
   { home: { kind: "fixed", rank: 2, group: "D" }, away: { kind: "fixed", rank: 2, group: "G" } },
 ];
 
