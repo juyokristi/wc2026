@@ -18,56 +18,55 @@ type SpecBest3rd = { kind: "best3rd"; groups: string[] };
 type TeamSpec = SpecFixed | SpecBest3rd;
 
 // WC2026 R32 bracket formulas in match order (matches 73–88), sourced from Wikipedia.
-// kickoffUtc: hardcoded from the confirmed schedule — always applied so the DB has
-// correct times even when FD still shows TBD for unconfirmed slots.
-// FD overrides the kickoff only when it returns a real (non-TBD) team pair match.
+// Pools confirmed from the actual bracket: https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_round_of_32
+// kickoffUtc: hardcoded from the confirmed schedule — always applied regardless of FD state.
 const R32_FORMULAS: Array<{ home: TeamSpec; away: TeamSpec; kickoffUtc: string; venue: string; city: string; country: string }> = [
-  // Match 73 — Jun 28 19:00 UTC  (South Africa vs Canada, SoFi Stadium)
+  // Match 73 — Jun 28 19:00 UTC  (South Africa vs Canada)
   { home: { kind: "fixed", rank: 2, group: "A" }, away: { kind: "fixed", rank: 2, group: "B" },
     kickoffUtc: "2026-06-28T19:00:00Z", venue: "SoFi Stadium", city: "Inglewood", country: "USA" },
-  // Match 74 — Jun 29 20:30 UTC  (Germany vs Paraguay, Gillette Stadium)
+  // Match 74 — Jun 29 20:30 UTC  (Germany vs Paraguay)
   { home: { kind: "fixed", rank: 1, group: "E" }, away: { kind: "fixed", rank: 3, group: "D" },
     kickoffUtc: "2026-06-29T20:30:00Z", venue: "Gillette Stadium", city: "Foxborough", country: "USA" },
-  // Match 75 — Jun 30 01:00 UTC  (Netherlands vs Morocco, Estadio BBVA)
+  // Match 75 — Jun 30 01:00 UTC  (Netherlands vs Morocco)
   { home: { kind: "fixed", rank: 1, group: "F" }, away: { kind: "fixed", rank: 2, group: "C" },
     kickoffUtc: "2026-06-30T01:00:00Z", venue: "Estadio BBVA", city: "Guadalupe", country: "Mexico" },
-  // Match 76 — Jun 29 17:00 UTC  (Brazil vs Japan, NRG Stadium)
+  // Match 76 — Jun 29 17:00 UTC  (Brazil vs Japan)
   { home: { kind: "fixed", rank: 1, group: "C" }, away: { kind: "fixed", rank: 2, group: "F" },
     kickoffUtc: "2026-06-29T17:00:00Z", venue: "NRG Stadium", city: "Houston", country: "USA" },
-  // Match 77 — Jun 30 21:00 UTC  (France vs Sweden, MetLife Stadium)
+  // Match 77 — Jun 30 21:00 UTC  (France vs Sweden)
   { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "fixed", rank: 3, group: "F" },
     kickoffUtc: "2026-06-30T21:00:00Z", venue: "MetLife Stadium", city: "East Rutherford", country: "USA" },
-  // Match 78 — Jun 30 17:00 UTC  (Ivory Coast vs Norway, AT&T Stadium)
+  // Match 78 — Jun 30 17:00 UTC  (Ivory Coast vs Norway)
   { home: { kind: "fixed", rank: 2, group: "E" }, away: { kind: "fixed", rank: 2, group: "I" },
     kickoffUtc: "2026-06-30T17:00:00Z", venue: "AT&T Stadium", city: "Arlington", country: "USA" },
-  // Match 79 — Jul 01 01:00 UTC  (Mexico vs best3rd C/E/H/I, Estadio Azteca)
-  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E", "H", "I"] },
+  // Match 79 — Jul 01 01:00 UTC  (Mexico vs 3rd C/E)
+  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E"] },
     kickoffUtc: "2026-07-01T01:00:00Z", venue: "Estadio Azteca", city: "Mexico City", country: "Mexico" },
-  // Match 80 — Jul 01 16:00 UTC  (Winner L vs best3rd E/H/I/J/K, Mercedes-Benz Stadium)
-  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["E", "H", "I", "J", "K"] },
+  // Match 80 — Jul 01 16:00 UTC  (Winner L vs 3rd I/J/K)
+  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["I", "J", "K"] },
     kickoffUtc: "2026-07-01T16:00:00Z", venue: "Mercedes-Benz Stadium", city: "Atlanta", country: "USA" },
-  // Match 81 — Jul 02 00:00 UTC  (USA vs Bosnia, Levi's Stadium)
+  // Match 81 — Jul 02 00:00 UTC  (USA vs Bosnia)
   { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "fixed", rank: 3, group: "B" },
     kickoffUtc: "2026-07-02T00:00:00Z", venue: "Levi's Stadium", city: "Santa Clara", country: "USA" },
-  // Match 82 — Jul 01 20:00 UTC  (Belgium vs best3rd A/E/H/I/J, Lumen Field)
-  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "E", "H", "I", "J"] },
+  // Match 82 — Jul 01 20:00 UTC  (Belgium vs 3rd A/I/J)
+  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "I", "J"] },
     kickoffUtc: "2026-07-01T20:00:00Z", venue: "Lumen Field", city: "Seattle", country: "USA" },
-  // Match 83 — Jul 02 23:00 UTC  (2nd K vs 2nd L, BMO Field)
+  // Match 83 — Jul 02 23:00 UTC  (2nd K vs 2nd L)
   { home: { kind: "fixed", rank: 2, group: "K" }, away: { kind: "fixed", rank: 2, group: "L" },
     kickoffUtc: "2026-07-02T23:00:00Z", venue: "BMO Field", city: "Toronto", country: "Canada" },
-  // Match 84 — Jul 02 19:00 UTC  (Spain vs 2nd J, SoFi Stadium)
+  // Match 84 — Jul 02 19:00 UTC  (Spain vs 2nd J)
   { home: { kind: "fixed", rank: 1, group: "H" }, away: { kind: "fixed", rank: 2, group: "J" },
     kickoffUtc: "2026-07-02T19:00:00Z", venue: "SoFi Stadium", city: "Inglewood", country: "USA" },
-  // Match 85 — Jul 03 03:00 UTC  (Switzerland vs best3rd E/G/I/J, BC Place)
-  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["E", "G", "I", "J"] },
+  // Match 85 — Jul 03 03:00 UTC  (Switzerland vs 3rd G/J)
+  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["G", "J"] },
     kickoffUtc: "2026-07-03T03:00:00Z", venue: "BC Place", city: "Vancouver", country: "Canada" },
-  // Match 86 — Jul 03 22:00 UTC  (Argentina vs Cape Verde, Hard Rock Stadium)
+  // Match 86 — Jul 03 22:00 UTC  (Argentina vs Cape Verde)
   { home: { kind: "fixed", rank: 1, group: "J" }, away: { kind: "fixed", rank: 2, group: "H" },
     kickoffUtc: "2026-07-03T22:00:00Z", venue: "Hard Rock Stadium", city: "Miami Gardens", country: "USA" },
-  // Match 87 — Jul 04 01:30 UTC  (Winner K vs best3rd E/I/J/L, Arrowhead Stadium)
-  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "J", "L"] },
+  // Match 87 — Jul 04 01:30 UTC  (Winner K vs 3rd E/I/L)
+  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "L"] },
     kickoffUtc: "2026-07-04T01:30:00Z", venue: "Arrowhead Stadium", city: "Kansas City", country: "USA" },
-  // Match 88 — Jul 03 18:00 UTC  (Australia vs Egypt, AT&T Stadium)
+  // Match 88 — Jul 03 18:00 UTC  (Australia vs Egypt)
   { home: { kind: "fixed", rank: 2, group: "D" }, away: { kind: "fixed", rank: 2, group: "G" },
     kickoffUtc: "2026-07-03T18:00:00Z", venue: "AT&T Stadium", city: "Arlington", country: "USA" },
 ];
@@ -82,17 +81,81 @@ function rankLabel(rank: number): string {
 function specLabel(spec: TeamSpec, team: TeamInfo | null): string {
   if (team) return `${rankLabel(team.rank)} Group ${team.group}`;
   if (spec.kind === "fixed") return `${rankLabel(spec.rank)} Group ${spec.group}`;
-  return `Best 3rd (${spec.groups.join("/")})`;
+  return `3rd Group ${spec.groups.join("/")}`;
 }
 
-function resolveSpec(spec: TeamSpec, byGroupRank: Map<string, TeamInfo>): TeamInfo | null {
-  if (spec.kind === "fixed") {
-    return byGroupRank.get(`${spec.group}-${spec.rank}`) ?? null;
+function resolveFixed(spec: SpecFixed, byGroupRank: Map<string, TeamInfo>): TeamInfo | null {
+  return byGroupRank.get(`${spec.group}-${spec.rank}`) ?? null;
+}
+
+// Bipartite matching (augmenting-path DFS) to assign best3rd teams to slots.
+// Returns a map of formula index → TeamInfo.
+// Requires ALL pool groups across all 5 slots to be fully finished before assigning
+// anything, so the global third-place ranking is accurate.
+function computeBest3rdAssignments(
+  thirdsByGroup: Map<string, TeamInfo>,
+  fullyFinishedGroups: Set<string>
+): Map<number, TeamInfo> {
+  // Collect all groups referenced in any best3rd pool
+  const allPoolGroups = new Set<string>();
+  for (const f of R32_FORMULAS) {
+    if (f.away.kind === "best3rd") f.away.groups.forEach(g => allPoolGroups.add(g));
+    if (f.home.kind === "best3rd") f.home.groups.forEach(g => allPoolGroups.add(g));
   }
-  // best3rd: Annex C requires a full lookup table to assign the correct group's
-  // team to each slot. Greedy "best from pool" gets it wrong. Return null so
-  // the slot keeps its placeholder label but no wrong team is assigned.
-  return null;
+
+  // All pool groups must be fully finished before we can do global ranking
+  for (const g of allPoolGroups) {
+    if (!fullyFinishedGroups.has(g)) return new Map();
+  }
+
+  // Find the top 5 dynamic qualifying groups (exclude B, D, F which are fixed slots)
+  const FIXED_GROUPS = new Set(["B", "D", "F"]);
+  const dynamicQualifiers = new Set(
+    [...thirdsByGroup.values()]
+      .filter(t => !FIXED_GROUPS.has(t.group))
+      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+      .slice(0, 5)
+      .map(t => t.group)
+  );
+
+  // Build slot candidate lists: formula index → qualifying groups in pool
+  const slotCandidates = new Map<number, string[]>();
+  for (let i = 0; i < R32_FORMULAS.length; i++) {
+    const spec = R32_FORMULAS[i].away.kind === "best3rd" ? R32_FORMULAS[i].away as SpecBest3rd
+               : R32_FORMULAS[i].home.kind === "best3rd" ? R32_FORMULAS[i].home as SpecBest3rd
+               : null;
+    if (!spec) continue;
+    const candidates = spec.groups.filter(g => dynamicQualifiers.has(g));
+    if (candidates.length > 0) slotCandidates.set(i, candidates);
+  }
+
+  // Augmenting-path bipartite matching: group → formula index
+  const groupAssignment = new Map<string, number>();
+
+  function dfs(formulaIdx: number, visited: Set<string>): boolean {
+    for (const group of slotCandidates.get(formulaIdx) ?? []) {
+      if (visited.has(group)) continue;
+      visited.add(group);
+      const current = groupAssignment.get(group);
+      if (current === undefined || dfs(current, visited)) {
+        groupAssignment.set(group, formulaIdx);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  for (const idx of slotCandidates.keys()) {
+    dfs(idx, new Set());
+  }
+
+  // Invert to formula index → team
+  const result = new Map<number, TeamInfo>();
+  for (const [group, idx] of groupAssignment) {
+    const team = thirdsByGroup.get(group);
+    if (team) result.set(idx, team);
+  }
+  return result;
 }
 
 export async function POST() {
@@ -105,12 +168,12 @@ export async function POST() {
     select: { id: true, code: true, name: true, group: true },
   });
 
-  // Determine which groups are fully finished (all 6 matches done)
   const allGroupMatches = await prisma.match.findMany({
     where: { stage: "GROUP" },
     select: { group: true, status: true, teamAId: true, teamBId: true, scoreA: true, scoreB: true },
   });
 
+  // Determine fully finished groups (all 6 matches FINISHED)
   const groupMatchCount = new Map<string, number>();
   const groupFinishedCount = new Map<string, number>();
   for (const m of allGroupMatches) {
@@ -127,25 +190,20 @@ export async function POST() {
     }
   }
 
-  // Compute per-team stats from all FINISHED group matches.
-  // No "fully finished group" gate here — fixed rank-1/rank-2 assignments only need
-  // the current standings of their own group, not a cross-group comparison.
+  // Stats from ALL finished matches — used for within-group rank-1/2/3 assignments.
   const statsMap = new Map<string, { pts: number; gd: number; gf: number }>();
   for (const t of allTeams) statsMap.set(t.id, { pts: 0, gd: 0, gf: 0 });
 
   for (const m of allGroupMatches) {
-    if (!m.group) continue;
+    if (!m.group || m.status !== "FINISHED") continue;
     if (!m.teamAId || !m.teamBId || m.scoreA === null || m.scoreB === null) continue;
-    if (m.status !== "FINISHED") continue;
     const a = statsMap.get(m.teamAId)!;
     const b = statsMap.get(m.teamBId)!;
     if (m.scoreA > m.scoreB) { a.pts += 3; }
     else if (m.scoreA < m.scoreB) { b.pts += 3; }
     else { a.pts += 1; b.pts += 1; }
-    a.gd += m.scoreA - m.scoreB;
-    a.gf += m.scoreA;
-    b.gd += m.scoreB - m.scoreA;
-    b.gf += m.scoreB;
+    a.gd += m.scoreA - m.scoreB; a.gf += m.scoreA;
+    b.gd += m.scoreB - m.scoreA; b.gf += m.scoreB;
   }
 
   const teamsByGroup = new Map<string, typeof allTeams>();
@@ -155,21 +213,24 @@ export async function POST() {
     teamsByGroup.get(t.group)!.push(t);
   }
 
-  // byGroupRank uses current standings for every group (not gated on fully finished).
+  // byGroupRank: current standings for all groups (fixed rank assignments)
   const byGroupRank = new Map<string, TeamInfo>();
+  // thirdsByGroup: only from fully finished groups (for cross-group best3rd comparison)
+  const thirdsByGroup = new Map<string, TeamInfo>();
 
   for (const [group, teams] of teamsByGroup) {
     const ranked = teams
-      .map((t) => {
-        const s = statsMap.get(t.id) ?? { pts: 0, gd: 0, gf: 0 };
-        return { ...t, ...s, group };
-      })
+      .map(t => ({ ...t, ...statsMap.get(t.id) ?? { pts: 0, gd: 0, gf: 0 }, group }))
       .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
-
     ranked.forEach((t, i) => {
-      byGroupRank.set(`${group}-${i + 1}`, { ...t, rank: i + 1 });
+      const info: TeamInfo = { ...t, rank: i + 1 };
+      byGroupRank.set(`${group}-${i + 1}`, info);
+      if (i === 2 && fullyFinishedGroups.has(group)) thirdsByGroup.set(group, info);
     });
   }
+
+  // Precompute best3rd slot assignments via bipartite matching
+  const best3rdAssignments = computeBest3rdAssignments(thirdsByGroup, fullyFinishedGroups);
 
   // Get the 16 R32 DB slots ordered by matchNumber
   const r32Slots = await prisma.match.findMany({
@@ -185,10 +246,9 @@ export async function POST() {
     );
   }
 
-  // Fetch FD schedule once — used to correct kickoff times after team assignment.
-  // Failures here are non-fatal; teams will still be assigned.
+  // FD team-pair lookup — optional override for kickoff/venue when FD has confirmed teams
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
-  let fdByTeamPair = new Map<string, { utcDate: string; venue: string | null }>();
+  const fdByTeamPair = new Map<string, { utcDate: string; venue: string | null }>();
   if (apiKey) {
     try {
       const fdRes = await fetch("https://api.football-data.org/v4/competitions/WC/matches", {
@@ -208,9 +268,7 @@ export async function POST() {
           fdByTeamPair.set(`${a}-${h}`, entry);
         }
       }
-    } catch {
-      // non-fatal
-    }
+    } catch { /* non-fatal */ }
   }
 
   let assigned = 0;
@@ -228,49 +286,42 @@ export async function POST() {
       continue;
     }
 
-    const homeTeam = resolveSpec(formula.home, byGroupRank);
-    const awayTeam = resolveSpec(formula.away, byGroupRank);
+    const homeSpec = formula.home;
+    const awaySpec = formula.away;
+    const homeTeam = homeSpec.kind === "fixed" ? resolveFixed(homeSpec, byGroupRank)
+                   : (best3rdAssignments.get(i) ?? null);
+    const awayTeam = awaySpec.kind === "fixed" ? resolveFixed(awaySpec, byGroupRank)
+                   : (best3rdAssignments.get(i) ?? null);
 
-    const homeLabel = specLabel(formula.home, homeTeam);
-    const awayLabel = specLabel(formula.away, awayTeam);
+    const homeLabel = specLabel(homeSpec, homeTeam);
+    const awayLabel = specLabel(awaySpec, awayTeam);
 
-    // Always apply hardcoded kickoff/venue from the formula; FD overrides when it
-    // has a confirmed (non-TBD) team-pair match.
     const fdEntry = homeTeam && awayTeam
       ? (fdByTeamPair.get(`${homeTeam.code}-${awayTeam.code}`) ??
          fdByTeamPair.get(`${awayTeam.code}-${homeTeam.code}`))
       : undefined;
 
-    const updateData: {
-      teamAId: string | null;
-      teamBId: string | null;
-      teamALabel: string;
-      teamBLabel: string;
-      kickoff: Date;
-      venue: string;
-      city: string;
-      country: string;
-    } = {
-      teamAId: homeTeam?.id ?? null,
-      teamBId: awayTeam?.id ?? null,
-      teamALabel: homeLabel,
-      teamBLabel: awayLabel,
-      kickoff: fdEntry ? new Date(fdEntry.utcDate) : new Date(formula.kickoffUtc),
-      venue: (fdEntry?.venue) ?? formula.venue,
-      city: formula.city,
-      country: formula.country,
-    };
+    await prisma.match.update({
+      where: { id: slot.id },
+      data: {
+        teamAId: homeTeam?.id ?? null,
+        teamBId: awayTeam?.id ?? null,
+        teamALabel: homeLabel,
+        teamBLabel: awayLabel,
+        kickoff: fdEntry ? new Date(fdEntry.utcDate) : new Date(formula.kickoffUtc),
+        venue: fdEntry?.venue ?? formula.venue,
+        city: formula.city,
+        country: formula.country,
+      },
+    });
 
     kickoffsFixed++;
-
-    await prisma.match.update({ where: { id: slot.id }, data: updateData });
-
     if (homeTeam && awayTeam) assigned++;
     details.push(`#${slot.matchNumber}: ${homeLabel} vs ${awayLabel}`);
   }
 
   const incompleteGroups = [...groupMatchCount.keys()]
-    .filter((g) => !fullyFinishedGroups.has(g))
+    .filter(g => !fullyFinishedGroups.has(g))
     .sort();
 
   return NextResponse.json({ assigned, kickoffsFixed, skipped, details, incompleteGroups, thirdPlaceRanking: [] });
