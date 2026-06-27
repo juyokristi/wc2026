@@ -5,6 +5,7 @@ import { AdminSyncButton } from "@/components/admin-sync-button";
 import { AdminFixPairingsButton } from "@/components/admin-fix-pairings-button";
 import { AdminFixKnockoutsButton } from "@/components/admin-fix-knockouts-button";
 import { AdminFdDebugButton } from "@/components/admin-fd-debug-button";
+import { AdminRebuildBracketButton } from "@/components/admin-rebuild-bracket-button";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -146,6 +147,32 @@ export default async function AdminPage() {
         </div>
 
         <AdminFdDebugButton />
+      </div>
+
+      {/* Rebuild bracket structure from FD */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div>
+          <h2
+            className="text-base font-semibold"
+            style={{ color: "var(--foreground)" }}
+          >
+            Rebuild bracket from FD
+          </h2>
+          <p
+            className="text-sm mt-0.5"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Re-aligns all knockout slot kickoff times with the actual FD schedule, assigns any newly confirmed teams, and derives correct placeholder labels (e.g. "1st Group I / 3rd Group F") from current group standings. Safe to run multiple times — only fills empty slots.
+          </p>
+        </div>
+
+        <AdminRebuildBracketButton />
       </div>
     </div>
   );
