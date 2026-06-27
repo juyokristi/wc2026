@@ -18,47 +18,58 @@ type SpecBest3rd = { kind: "best3rd"; groups: string[] };
 type TeamSpec = SpecFixed | SpecBest3rd;
 
 // WC2026 R32 bracket formulas in match order (matches 73–88), sourced from Wikipedia.
-//
-// Matches 74, 77, 81 use fixed rank-3 slots (confirmed real results: Germany–Paraguay,
-// France–Sweden, USA–Bosnia). Using "best3rd" for these caused the greedy to swap them
-// because Sweden (3rd F) ranks higher globally than Paraguay (3rd D) and F appears in
-// both the Match 74 pool and Match 77 pool.
-//
-// The five remaining dynamic best3rd slots use the NARROWED pools that Wikipedia shows
-// as common across all currently possible Annex C combinations.
-const R32_FORMULAS: Array<{ home: TeamSpec; away: TeamSpec }> = [
-  // Match 73: 2nd A vs 2nd B
-  { home: { kind: "fixed", rank: 2, group: "A" }, away: { kind: "fixed", rank: 2, group: "B" } },
-  // Match 74: 1st E vs 3rd D  (Germany vs Paraguay — fixed, not greedy)
-  { home: { kind: "fixed", rank: 1, group: "E" }, away: { kind: "fixed", rank: 3, group: "D" } },
-  // Match 75: 1st F vs 2nd C
-  { home: { kind: "fixed", rank: 1, group: "F" }, away: { kind: "fixed", rank: 2, group: "C" } },
-  // Match 76: 1st C vs 2nd F
-  { home: { kind: "fixed", rank: 1, group: "C" }, away: { kind: "fixed", rank: 2, group: "F" } },
-  // Match 77: 1st I vs 3rd F  (France vs Sweden — fixed, not greedy)
-  { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "fixed", rank: 3, group: "F" } },
-  // Match 78: 2nd E vs 2nd I
-  { home: { kind: "fixed", rank: 2, group: "E" }, away: { kind: "fixed", rank: 2, group: "I" } },
-  // Match 79: 1st A vs best3rd(C/E/H/I) — original pool {C/E/F/H/I} minus F (committed to M77)
-  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E", "H", "I"] } },
-  // Match 80: 1st L vs best3rd(E/H/I/J/K) — original pool, no committed groups
-  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["E", "H", "I", "J", "K"] } },
-  // Match 81: 1st D vs 3rd B  (USA vs Bosnia — fixed, not greedy)
-  { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "fixed", rank: 3, group: "B" } },
-  // Match 82: 1st G vs best3rd(A/E/H/I/J) — original pool, no committed groups
-  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "E", "H", "I", "J"] } },
-  // Match 83: 2nd K vs 2nd L
-  { home: { kind: "fixed", rank: 2, group: "K" }, away: { kind: "fixed", rank: 2, group: "L" } },
-  // Match 84: 1st H vs 2nd J
-  { home: { kind: "fixed", rank: 1, group: "H" }, away: { kind: "fixed", rank: 2, group: "J" } },
-  // Match 85: 1st B vs best3rd(E/G/I/J) — original pool {E/F/G/I/J} minus F (committed to M77)
-  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["E", "G", "I", "J"] } },
-  // Match 86: 1st J vs 2nd H  (Argentina vs Cape Verde)
-  { home: { kind: "fixed", rank: 1, group: "J" }, away: { kind: "fixed", rank: 2, group: "H" } },
-  // Match 87: 1st K vs best3rd(E/I/J/L) — original pool {D/E/I/J/L} minus D (committed to M74)
-  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "J", "L"] } },
-  // Match 88: 2nd D vs 2nd G
-  { home: { kind: "fixed", rank: 2, group: "D" }, away: { kind: "fixed", rank: 2, group: "G" } },
+// kickoffUtc: hardcoded from the confirmed schedule — always applied so the DB has
+// correct times even when FD still shows TBD for unconfirmed slots.
+// FD overrides the kickoff only when it returns a real (non-TBD) team pair match.
+const R32_FORMULAS: Array<{ home: TeamSpec; away: TeamSpec; kickoffUtc: string; venue: string; city: string; country: string }> = [
+  // Match 73 — Jun 28 19:00 UTC  (South Africa vs Canada, SoFi Stadium)
+  { home: { kind: "fixed", rank: 2, group: "A" }, away: { kind: "fixed", rank: 2, group: "B" },
+    kickoffUtc: "2026-06-28T19:00:00Z", venue: "SoFi Stadium", city: "Inglewood", country: "USA" },
+  // Match 74 — Jun 29 20:30 UTC  (Germany vs Paraguay, Gillette Stadium)
+  { home: { kind: "fixed", rank: 1, group: "E" }, away: { kind: "fixed", rank: 3, group: "D" },
+    kickoffUtc: "2026-06-29T20:30:00Z", venue: "Gillette Stadium", city: "Foxborough", country: "USA" },
+  // Match 75 — Jun 30 01:00 UTC  (Netherlands vs Morocco, Estadio BBVA)
+  { home: { kind: "fixed", rank: 1, group: "F" }, away: { kind: "fixed", rank: 2, group: "C" },
+    kickoffUtc: "2026-06-30T01:00:00Z", venue: "Estadio BBVA", city: "Guadalupe", country: "Mexico" },
+  // Match 76 — Jun 29 17:00 UTC  (Brazil vs Japan, NRG Stadium)
+  { home: { kind: "fixed", rank: 1, group: "C" }, away: { kind: "fixed", rank: 2, group: "F" },
+    kickoffUtc: "2026-06-29T17:00:00Z", venue: "NRG Stadium", city: "Houston", country: "USA" },
+  // Match 77 — Jun 30 21:00 UTC  (France vs Sweden, MetLife Stadium)
+  { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "fixed", rank: 3, group: "F" },
+    kickoffUtc: "2026-06-30T21:00:00Z", venue: "MetLife Stadium", city: "East Rutherford", country: "USA" },
+  // Match 78 — Jun 30 17:00 UTC  (Ivory Coast vs Norway, AT&T Stadium)
+  { home: { kind: "fixed", rank: 2, group: "E" }, away: { kind: "fixed", rank: 2, group: "I" },
+    kickoffUtc: "2026-06-30T17:00:00Z", venue: "AT&T Stadium", city: "Arlington", country: "USA" },
+  // Match 79 — Jul 01 01:00 UTC  (Mexico vs best3rd C/E/H/I, Estadio Azteca)
+  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E", "H", "I"] },
+    kickoffUtc: "2026-07-01T01:00:00Z", venue: "Estadio Azteca", city: "Mexico City", country: "Mexico" },
+  // Match 80 — Jul 01 16:00 UTC  (Winner L vs best3rd E/H/I/J/K, Mercedes-Benz Stadium)
+  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["E", "H", "I", "J", "K"] },
+    kickoffUtc: "2026-07-01T16:00:00Z", venue: "Mercedes-Benz Stadium", city: "Atlanta", country: "USA" },
+  // Match 81 — Jul 02 00:00 UTC  (USA vs Bosnia, Levi's Stadium)
+  { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "fixed", rank: 3, group: "B" },
+    kickoffUtc: "2026-07-02T00:00:00Z", venue: "Levi's Stadium", city: "Santa Clara", country: "USA" },
+  // Match 82 — Jul 01 20:00 UTC  (Belgium vs best3rd A/E/H/I/J, Lumen Field)
+  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "E", "H", "I", "J"] },
+    kickoffUtc: "2026-07-01T20:00:00Z", venue: "Lumen Field", city: "Seattle", country: "USA" },
+  // Match 83 — Jul 02 23:00 UTC  (2nd K vs 2nd L, BMO Field)
+  { home: { kind: "fixed", rank: 2, group: "K" }, away: { kind: "fixed", rank: 2, group: "L" },
+    kickoffUtc: "2026-07-02T23:00:00Z", venue: "BMO Field", city: "Toronto", country: "Canada" },
+  // Match 84 — Jul 02 19:00 UTC  (Spain vs 2nd J, SoFi Stadium)
+  { home: { kind: "fixed", rank: 1, group: "H" }, away: { kind: "fixed", rank: 2, group: "J" },
+    kickoffUtc: "2026-07-02T19:00:00Z", venue: "SoFi Stadium", city: "Inglewood", country: "USA" },
+  // Match 85 — Jul 03 03:00 UTC  (Switzerland vs best3rd E/G/I/J, BC Place)
+  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["E", "G", "I", "J"] },
+    kickoffUtc: "2026-07-03T03:00:00Z", venue: "BC Place", city: "Vancouver", country: "Canada" },
+  // Match 86 — Jul 03 22:00 UTC  (Argentina vs Cape Verde, Hard Rock Stadium)
+  { home: { kind: "fixed", rank: 1, group: "J" }, away: { kind: "fixed", rank: 2, group: "H" },
+    kickoffUtc: "2026-07-03T22:00:00Z", venue: "Hard Rock Stadium", city: "Miami Gardens", country: "USA" },
+  // Match 87 — Jul 04 01:30 UTC  (Winner K vs best3rd E/I/J/L, Arrowhead Stadium)
+  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "J", "L"] },
+    kickoffUtc: "2026-07-04T01:30:00Z", venue: "Arrowhead Stadium", city: "Kansas City", country: "USA" },
+  // Match 88 — Jul 03 18:00 UTC  (Australia vs Egypt, AT&T Stadium)
+  { home: { kind: "fixed", rank: 2, group: "D" }, away: { kind: "fixed", rank: 2, group: "G" },
+    kickoffUtc: "2026-07-03T18:00:00Z", venue: "AT&T Stadium", city: "Arlington", country: "USA" },
 ];
 
 function rankLabel(rank: number): string {
@@ -247,31 +258,34 @@ export async function POST() {
     const homeLabel = specLabel(formula.home, homeTeam);
     const awayLabel = specLabel(formula.away, awayTeam);
 
-    // Look up the correct kickoff from FD if both teams are known
+    // Always apply hardcoded kickoff/venue from the formula; FD overrides when it
+    // has a confirmed (non-TBD) team-pair match.
+    const fdEntry = homeTeam && awayTeam
+      ? (fdByTeamPair.get(`${homeTeam.code}-${awayTeam.code}`) ??
+         fdByTeamPair.get(`${awayTeam.code}-${homeTeam.code}`))
+      : undefined;
+
     const updateData: {
       teamAId: string | null;
       teamBId: string | null;
       teamALabel: string;
       teamBLabel: string;
-      kickoff?: Date;
-      venue?: string;
+      kickoff: Date;
+      venue: string;
+      city: string;
+      country: string;
     } = {
       teamAId: homeTeam?.id ?? null,
       teamBId: awayTeam?.id ?? null,
       teamALabel: homeLabel,
       teamBLabel: awayLabel,
+      kickoff: fdEntry ? new Date(fdEntry.utcDate) : new Date(formula.kickoffUtc),
+      venue: (fdEntry?.venue) ?? formula.venue,
+      city: formula.city,
+      country: formula.country,
     };
 
-    if (homeTeam && awayTeam) {
-      const fdEntry =
-        fdByTeamPair.get(`${homeTeam.code}-${awayTeam.code}`) ??
-        fdByTeamPair.get(`${awayTeam.code}-${homeTeam.code}`);
-      if (fdEntry) {
-        updateData.kickoff = new Date(fdEntry.utcDate);
-        if (fdEntry.venue) updateData.venue = fdEntry.venue;
-        kickoffsFixed++;
-      }
-    }
+    kickoffsFixed++;
 
     await prisma.match.update({ where: { id: slot.id }, data: updateData });
 
