@@ -39,24 +39,24 @@ const R32_FORMULAS: Array<{ home: TeamSpec; away: TeamSpec }> = [
   { home: { kind: "fixed", rank: 1, group: "I" }, away: { kind: "fixed", rank: 3, group: "F" } },
   // Match 78: 2nd E vs 2nd I
   { home: { kind: "fixed", rank: 2, group: "E" }, away: { kind: "fixed", rank: 2, group: "I" } },
-  // Match 79: 1st A vs best3rd(C/E) — narrowed from original (C/E/F/H/I)
-  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E"] } },
-  // Match 80: 1st L vs best3rd(I/J/K) — narrowed from original (E/H/I/J/K)
-  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["I", "J", "K"] } },
+  // Match 79: 1st A vs best3rd(C/E/H/I) — original pool {C/E/F/H/I} minus F (committed to M77)
+  { home: { kind: "fixed", rank: 1, group: "A" }, away: { kind: "best3rd", groups: ["C", "E", "H", "I"] } },
+  // Match 80: 1st L vs best3rd(E/H/I/J/K) — original pool, no committed groups
+  { home: { kind: "fixed", rank: 1, group: "L" }, away: { kind: "best3rd", groups: ["E", "H", "I", "J", "K"] } },
   // Match 81: 1st D vs 3rd B  (USA vs Bosnia — fixed, not greedy)
   { home: { kind: "fixed", rank: 1, group: "D" }, away: { kind: "fixed", rank: 3, group: "B" } },
-  // Match 82: 1st G vs best3rd(A/I/J) — narrowed from original (A/E/H/I/J)
-  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "I", "J"] } },
+  // Match 82: 1st G vs best3rd(A/E/H/I/J) — original pool, no committed groups
+  { home: { kind: "fixed", rank: 1, group: "G" }, away: { kind: "best3rd", groups: ["A", "E", "H", "I", "J"] } },
   // Match 83: 2nd K vs 2nd L
   { home: { kind: "fixed", rank: 2, group: "K" }, away: { kind: "fixed", rank: 2, group: "L" } },
   // Match 84: 1st H vs 2nd J
   { home: { kind: "fixed", rank: 1, group: "H" }, away: { kind: "fixed", rank: 2, group: "J" } },
-  // Match 85: 1st B vs best3rd(G/J) — narrowed from original (E/F/G/I/J)
-  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["G", "J"] } },
+  // Match 85: 1st B vs best3rd(E/G/I/J) — original pool {E/F/G/I/J} minus F (committed to M77)
+  { home: { kind: "fixed", rank: 1, group: "B" }, away: { kind: "best3rd", groups: ["E", "G", "I", "J"] } },
   // Match 86: 1st J vs 2nd H  (Argentina vs Cape Verde)
   { home: { kind: "fixed", rank: 1, group: "J" }, away: { kind: "fixed", rank: 2, group: "H" } },
-  // Match 87: 1st K vs best3rd(E/I/L) — narrowed from original (D/E/I/J/L)
-  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "L"] } },
+  // Match 87: 1st K vs best3rd(E/I/J/L) — original pool {D/E/I/J/L} minus D (committed to M74)
+  { home: { kind: "fixed", rank: 1, group: "K" }, away: { kind: "best3rd", groups: ["E", "I", "J", "L"] } },
   // Match 88: 2nd D vs 2nd G
   { home: { kind: "fixed", rank: 2, group: "D" }, away: { kind: "fixed", rank: 2, group: "G" } },
 ];
@@ -190,6 +190,8 @@ export async function POST() {
     );
   }
 
+  // Tracks all team IDs already assigned (fixed or best3rd) so the greedy
+  // doesn't double-assign a 3rd-place team that was already committed via a fixed slot.
   const assignedBest3rd = new Set<string>();
   let assigned = 0;
   let skipped = 0;
@@ -207,6 +209,11 @@ export async function POST() {
 
     const homeTeam = resolveSpec(formula.home, byGroupRank, thirdsByGroup, assignedBest3rd, fullyFinishedGroups);
     const awayTeam = resolveSpec(formula.away, byGroupRank, thirdsByGroup, assignedBest3rd, fullyFinishedGroups);
+
+    // Register any fixed rank-3 assignment so the greedy pools exclude it
+    if (formula.away.kind === "fixed" && formula.away.rank === 3 && awayTeam) {
+      assignedBest3rd.add(awayTeam.id);
+    }
 
     const homeLabel = specLabel(formula.home, homeTeam);
     const awayLabel = specLabel(formula.away, awayTeam);
