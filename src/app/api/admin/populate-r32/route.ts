@@ -88,6 +88,25 @@ function resolveFixed(spec: SpecFixed, byGroupRank: Map<string, TeamInfo>): Team
   return byGroupRank.get(`${spec.group}-${spec.rank}`) ?? null;
 }
 
+// A team is mathematically guaranteed rank R if:
+//   (a) no other team can EXCEED their current pts (strictly), and
+//   (b) no other team with remaining games can TIE their current pts
+//       (a tie would require GD/GF tie-breaking which isn't yet deterministic).
+function isRankGuaranteedByPoints(
+  targetRank: number,
+  teamPts: number,
+  otherTeams: { pts: number; remaining: number }[]
+): boolean {
+  let canBeat = 0;
+  let canFutureTie = 0;
+  for (const o of otherTeams) {
+    const maxPts = o.pts + 3 * o.remaining;
+    if (maxPts > teamPts) canBeat++;
+    else if (maxPts === teamPts && o.remaining > 0) canFutureTie++;
+  }
+  return canBeat < targetRank && canFutureTie === 0;
+}
+
 // Bipartite matching (augmenting-path DFS) to assign best3rd teams to slots.
 // Returns a map of formula index → TeamInfo.
 // Requires ALL pool groups across all 5 slots to be fully finished before assigning
@@ -206,6 +225,14 @@ export async function POST() {
     b.gd += m.scoreB - m.scoreA; b.gf += m.scoreB;
   }
 
+  // Count remaining (non-FINISHED) group matches per team for guarantee checks
+  const remainingByTeam = new Map<string, number>();
+  for (const m of allGroupMatches) {
+    if (m.status === "FINISHED") continue;
+    if (m.teamAId) remainingByTeam.set(m.teamAId, (remainingByTeam.get(m.teamAId) ?? 0) + 1);
+    if (m.teamBId) remainingByTeam.set(m.teamBId, (remainingByTeam.get(m.teamBId) ?? 0) + 1);
+  }
+
   const teamsByGroup = new Map<string, typeof allTeams>();
   for (const t of allTeams) {
     if (!t.group) continue;
@@ -213,21 +240,30 @@ export async function POST() {
     teamsByGroup.get(t.group)!.push(t);
   }
 
-  // byGroupRank and thirdsByGroup: only from fully finished groups.
-  // Partial standings are unreliable (0-pts sort order is arbitrary), so we only
-  // assign teams once a group has played all its matches.
+  // byGroupRank: a slot is filled only when the team's rank is mathematically guaranteed.
+  // thirdsByGroup: still requires the full group to be finished (cross-group ranking needs final stats).
   const byGroupRank = new Map<string, TeamInfo>();
   const thirdsByGroup = new Map<string, TeamInfo>();
 
   for (const [group, teams] of teamsByGroup) {
-    if (!fullyFinishedGroups.has(group)) continue;
+    const isFullyDone = fullyFinishedGroups.has(group);
     const ranked = teams
       .map(t => ({ ...t, ...statsMap.get(t.id) ?? { pts: 0, gd: 0, gf: 0 }, group }))
       .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+
     ranked.forEach((t, i) => {
-      const info: TeamInfo = { ...t, rank: i + 1 };
-      byGroupRank.set(`${group}-${i + 1}`, info);
-      if (i === 2) thirdsByGroup.set(group, info);
+      const rank = i + 1;
+      const info: TeamInfo = { ...t, rank };
+      const guaranteed = isFullyDone || isRankGuaranteedByPoints(
+        rank,
+        t.pts,
+        ranked.filter(o => o.id !== t.id).map(o => ({
+          pts: o.pts,
+          remaining: remainingByTeam.get(o.id) ?? 0,
+        }))
+      );
+      if (guaranteed) byGroupRank.set(`${group}-${rank}`, info);
+      if (isFullyDone && rank === 3) thirdsByGroup.set(group, info);
     });
   }
 
@@ -326,5 +362,9 @@ export async function POST() {
     .filter(g => !fullyFinishedGroups.has(g))
     .sort();
 
-  return NextResponse.json({ assigned, kickoffsFixed, skipped, details, incompleteGroups, thirdPlaceRanking: [] });
+  const thirdPlaceRanking = [...thirdsByGroup.values()]
+    .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+    .map((t, i) => ({ rank: i + 1, group: t.group, name: t.name, pts: t.pts, gd: t.gd, gf: t.gf }));
+
+  return NextResponse.json({ assigned, kickoffsFixed, skipped, details, incompleteGroups, thirdPlaceRanking });
 }
