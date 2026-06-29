@@ -44,6 +44,116 @@ async function fetchDay(dateStr: string): Promise<EspnEvent[]> {
   }
 }
 
+// WC2026 bracket progression: matchNumber → next match + which slot the winner fills.
+// R32 (73-88) → R16 (89-96) → QF (97-100) → SF (101-102) → Final (104).
+// Loser of each SF feeds match 103 (3rd place).
+const BRACKET_NEXT: Record<number, { nextMatch: number; slot: "home" | "away" }> = {
+  // R32 → R16
+  73: { nextMatch: 89, slot: "home" }, 74: { nextMatch: 89, slot: "away" },
+  75: { nextMatch: 90, slot: "home" }, 76: { nextMatch: 90, slot: "away" },
+  77: { nextMatch: 91, slot: "home" }, 78: { nextMatch: 91, slot: "away" },
+  79: { nextMatch: 92, slot: "home" }, 80: { nextMatch: 92, slot: "away" },
+  81: { nextMatch: 93, slot: "home" }, 82: { nextMatch: 93, slot: "away" },
+  83: { nextMatch: 94, slot: "home" }, 84: { nextMatch: 94, slot: "away" },
+  85: { nextMatch: 95, slot: "home" }, 86: { nextMatch: 95, slot: "away" },
+  87: { nextMatch: 96, slot: "home" }, 88: { nextMatch: 96, slot: "away" },
+  // R16 → QF
+  89: { nextMatch: 97, slot: "home" }, 90: { nextMatch: 97, slot: "away" },
+  91: { nextMatch: 98, slot: "home" }, 92: { nextMatch: 98, slot: "away" },
+  93: { nextMatch: 99, slot: "home" }, 94: { nextMatch: 99, slot: "away" },
+  95: { nextMatch: 100, slot: "home" }, 96: { nextMatch: 100, slot: "away" },
+  // QF → SF
+  97: { nextMatch: 101, slot: "home" }, 98: { nextMatch: 101, slot: "away" },
+  99: { nextMatch: 102, slot: "home" }, 100: { nextMatch: 102, slot: "away" },
+  // SF → Final (winners) and 3rd place (losers handled below)
+  101: { nextMatch: 104, slot: "home" }, 102: { nextMatch: 104, slot: "away" },
+};
+
+async function propagateKnockoutWinners(): Promise<number> {
+  const finishedKnockout = await prisma.match.findMany({
+    where: { stage: { not: "GROUP" }, status: "FINISHED", winnerId: { not: null } },
+    select: { id: true, matchNumber: true, teamAId: true, teamBId: true, winnerId: true },
+  });
+  if (finishedKnockout.length === 0) return 0;
+
+  // Collect all next-match numbers we need to update
+  const nextMatchNums = new Set<number>();
+  for (const m of finishedKnockout) {
+    const next = BRACKET_NEXT[m.matchNumber!];
+    if (next) nextMatchNums.add(next.nextMatch);
+    // SF losers go to 3rd place match 103
+    if (m.matchNumber === 101 || m.matchNumber === 102) nextMatchNums.add(103);
+  }
+
+  const targets = await prisma.match.findMany({
+    where: { matchNumber: { in: [...nextMatchNums] } },
+    select: { id: true, matchNumber: true, teamAId: true, teamBId: true },
+  });
+  const targetByNum = new Map(targets.map(t => [t.matchNumber!, t]));
+
+  // Load team names for labels
+  const teamIds = new Set<string>();
+  for (const m of finishedKnockout) {
+    if (m.winnerId) teamIds.add(m.winnerId);
+    if (m.teamAId) teamIds.add(m.teamAId);
+    if (m.teamBId) teamIds.add(m.teamBId);
+  }
+  const teams = await prisma.team.findMany({
+    where: { id: { in: [...teamIds] } },
+    select: { id: true, name: true },
+  });
+  const teamName = new Map(teams.map(t => [t.id, t.name]));
+
+  let propagated = 0;
+
+  for (const m of finishedKnockout) {
+    // Winner → next bracket slot
+    const next = BRACKET_NEXT[m.matchNumber!];
+    if (next && m.winnerId) {
+      const target = targetByNum.get(next.nextMatch);
+      if (target) {
+        const name = teamName.get(m.winnerId) ?? `W${m.matchNumber}`;
+        const alreadySet = next.slot === "home" ? target.teamAId === m.winnerId
+                                                 : target.teamBId === m.winnerId;
+        if (!alreadySet) {
+          await prisma.match.update({
+            where: { id: target.id },
+            data: next.slot === "home"
+              ? { teamAId: m.winnerId, teamALabel: name }
+              : { teamBId: m.winnerId, teamBLabel: name },
+          });
+          propagated++;
+        }
+      }
+    }
+
+    // SF losers → 3rd place match (103)
+    if ((m.matchNumber === 101 || m.matchNumber === 102) && m.winnerId) {
+      const loserId = m.teamAId === m.winnerId ? m.teamBId : m.teamAId;
+      if (loserId) {
+        const target = targetByNum.get(103);
+        if (target) {
+          const name = teamName.get(loserId) ?? `L${m.matchNumber}`;
+          const slot = m.matchNumber === 101 ? "home" : "away";
+          const alreadySet = slot === "home" ? target.teamAId === loserId
+                                             : target.teamBId === loserId;
+          if (!alreadySet) {
+            await prisma.match.update({
+              where: { id: target.id },
+              data: slot === "home"
+                ? { teamAId: loserId, teamALabel: name }
+                : { teamBId: loserId, teamBLabel: name },
+            });
+            propagated++;
+          }
+        }
+      }
+    }
+  }
+
+  return propagated;
+}
+
 export async function syncScores(): Promise<{
   scoresUpdated: number;
   kickoffsFixed: number;
@@ -195,11 +305,13 @@ export async function syncScores(): Promise<{
     }
   }
 
+  const knockoutAssigned = await propagateKnockoutWinners();
+
   return {
     scoresUpdated,
     kickoffsFixed,
-    knockoutAssigned: 0, // R32+ team assignments handled by the Populate R32 admin action
+    knockoutAssigned,
     checked: allEvents.length,
-    unseenFdStages: [], // field kept for API response compatibility
+    unseenFdStages: [],
   };
 }
