@@ -91,7 +91,7 @@ async function propagateKnockoutWinners(): Promise<number> {
 
   const targets = await prisma.match.findMany({
     where: { matchNumber: { in: [...nextMatchNums] } },
-    select: { id: true, matchNumber: true, teamAId: true, teamBId: true },
+    select: { id: true, matchNumber: true, teamAId: true, teamBId: true, status: true },
   });
   const targetByNum = new Map(targets.map(t => [t.matchNumber!, t]));
 
@@ -120,11 +120,17 @@ async function propagateKnockoutWinners(): Promise<number> {
         const alreadySet = next.slot === "home" ? target.teamAId === m.winnerId
                                                  : target.teamBId === m.winnerId;
         if (!alreadySet) {
+          // If a wrongly-assigned team pair was accidentally scored (e.g. a group-stage
+          // result matched against a future knockout slot), clear the stale score.
+          const staleScore = target.status === "FINISHED" || target.status === "LIVE";
           await prisma.match.update({
             where: { id: target.id },
-            data: next.slot === "home"
-              ? { teamAId: m.winnerId, teamALabel: name }
-              : { teamBId: m.winnerId, teamBLabel: name },
+            data: {
+              ...(next.slot === "home"
+                ? { teamAId: m.winnerId, teamALabel: name }
+                : { teamBId: m.winnerId, teamBLabel: name }),
+              ...(staleScore ? { status: "SCHEDULED", scoreA: null, scoreB: null, winnerId: null } : {}),
+            },
           });
           propagated++;
         }
