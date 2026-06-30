@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { CircularBracket } from "@/components/circular-bracket";
 
 const STAGE_ORDER = ["ROUND_OF_32", "ROUND_OF_16", "QUARTER_FINAL", "SEMI_FINAL", "FINAL"] as const;
 const STAGE_LABELS: Record<string, string> = {
@@ -56,6 +57,14 @@ export default async function BracketPage() {
           Knockout stages — your predictions shown below each match.
         </p>
       </div>
+
+      <div className="max-w-2xl mx-auto px-4">
+        <CircularBracket matches={knockoutMatches} />
+      </div>
+
+      <p className="text-xs text-center mt-2 mb-6" style={{ color: "var(--muted-foreground)" }}>
+        Scroll down for match details
+      </p>
 
       <div className="max-w-7xl mx-auto overflow-x-auto pb-4">
         <div className="flex gap-5 items-start" style={{ minWidth: "max-content" }}>
