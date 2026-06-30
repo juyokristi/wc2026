@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { rebuildBracket } from "@/lib/bracket";
 
 interface TeamInfo {
   id: string;
@@ -382,6 +383,9 @@ export async function POST() {
     details.push(`#${slot.matchNumber}: ${homeLabel} vs ${awayLabel}`);
   }
 
+  // Propagate any already-finished R32 results into R16 slots, and recompute labels.
+  const { assigned: bracketAssigned, labelsUpdated } = await rebuildBracket();
+
   const incompleteGroups = [...groupMatchCount.keys()]
     .filter(g => !fullyFinishedGroups.has(g))
     .sort();
@@ -390,5 +394,14 @@ export async function POST() {
     .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
     .map((t, i) => ({ rank: i + 1, group: t.group, name: t.name, pts: t.pts, gd: t.gd, gf: t.gf }));
 
-  return NextResponse.json({ assigned, kickoffsFixed, skipped, details, incompleteGroups, thirdPlaceRanking });
+  return NextResponse.json({
+    assigned,
+    kickoffsFixed,
+    skipped,
+    details,
+    incompleteGroups,
+    thirdPlaceRanking,
+    bracketAssigned,
+    labelsUpdated,
+  });
 }

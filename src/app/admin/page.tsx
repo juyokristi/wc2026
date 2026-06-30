@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { syncScores } from "@/lib/sync-scores";
 import { AdminSyncButton } from "@/components/admin-sync-button";
 import { AdminFixPairingsButton } from "@/components/admin-fix-pairings-button";
-import { AdminFixKnockoutsButton } from "@/components/admin-fix-knockouts-button";
 import { AdminFdDebugButton } from "@/components/admin-fd-debug-button";
 import { AdminRebuildBracketButton } from "@/components/admin-rebuild-bracket-button";
 import { AdminPopulateR32Button } from "@/components/admin-populate-r32-button";
@@ -97,33 +96,6 @@ export default async function AdminPage() {
         <AdminFixPairingsButton />
       </div>
 
-      {/* Fix duplicate knockout assignments */}
-      <div
-        className="rounded-2xl p-6 space-y-4"
-        style={{
-          border: "1px solid var(--border)",
-          backgroundColor: "var(--card)",
-        }}
-      >
-        <div>
-          <h2
-            className="text-base font-semibold"
-            style={{ color: "var(--foreground)" }}
-          >
-            Fix duplicate knockout assignments
-          </h2>
-          <p
-            className="text-sm mt-0.5"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Finds knockout match slots where the same team pair was accidentally
-            assigned twice, clears the duplicates, then run Score Sync to repopulate correctly.
-          </p>
-        </div>
-
-        <AdminFixKnockoutsButton />
-      </div>
-
       {/* FD API diagnostic */}
       <div
         className="rounded-2xl p-6 space-y-4"
@@ -178,7 +150,7 @@ export default async function AdminPage() {
         <AdminPopulateR32Button />
       </div>
 
-      {/* Rebuild bracket structure from FD */}
+      {/* Rebuild bracket */}
       <div
         className="rounded-2xl p-6 space-y-4"
         style={{
@@ -191,13 +163,15 @@ export default async function AdminPage() {
             className="text-base font-semibold"
             style={{ color: "var(--foreground)" }}
           >
-            Rebuild bracket from FD
+            Rebuild bracket
           </h2>
           <p
             className="text-sm mt-0.5"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Re-aligns all knockout slot kickoff times with the actual FD schedule, assigns any newly confirmed teams, and derives correct placeholder labels (e.g. "1st Group I / 3rd Group F") from current group standings. Safe to run multiple times — only fills empty slots.
+            Recomputes all R16–Final slot assignments from finished match results and
+            refreshes all TBD labels. Run this after manually editing match data or
+            whenever bracket slots look wrong. Also runs automatically as part of Score Sync.
           </p>
         </div>
 

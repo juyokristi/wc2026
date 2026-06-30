@@ -4,10 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface RebuildResult {
-  kickoffsUpdated: number;
-  teamsAssigned: number;
-  stageSummary: Record<string, { fdCount: number; dbCount: number; updated: number }>;
-  unseenFdStages: string[];
+  assigned: number;
+  labelsUpdated: number;
 }
 
 export function AdminRebuildBracketButton() {
@@ -37,7 +35,7 @@ export function AdminRebuildBracketButton() {
   return (
     <div className="space-y-3">
       <Button variant="accent" onClick={handleRebuild} disabled={loading}>
-        {loading ? "Rebuilding…" : "Rebuild bracket from FD"}
+        {loading ? "Rebuilding…" : "Rebuild bracket"}
       </Button>
 
       {error && <p className="text-sm" style={{ color: "#FE7637" }}>Error: {error}</p>}
@@ -48,17 +46,7 @@ export function AdminRebuildBracketButton() {
           style={{ backgroundColor: "rgba(50,190,191,0.08)", border: "1px solid rgba(50,190,191,0.25)" }}
         >
           <p className="font-semibold" style={{ color: "#32BEBF" }}>Rebuild complete</p>
-          <p>{result.kickoffsUpdated} slots updated · {result.teamsAssigned} new team assignments</p>
-          {Object.entries(result.stageSummary).map(([stage, s]) => (
-            <p key={stage} style={{ color: "var(--muted-foreground)" }}>
-              {stage}: {s.updated}/{Math.min(s.fdCount, s.dbCount)} updated (FD: {s.fdCount}, DB: {s.dbCount})
-            </p>
-          ))}
-          {result.unseenFdStages.length > 0 && (
-            <p style={{ color: "#FE7637" }}>
-              Unknown FD stages (add to FD_STAGE_MAP): {result.unseenFdStages.join(", ")}
-            </p>
-          )}
+          <p>{result.assigned} slot{result.assigned !== 1 ? "s" : ""} assigned · {result.labelsUpdated} label{result.labelsUpdated !== 1 ? "s" : ""} updated</p>
         </div>
       )}
     </div>
