@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
 
 interface MatchTeam {
   name: string;
@@ -22,350 +22,388 @@ interface KnockoutMatch {
   teamB: MatchTeam | null;
   teamALabel: string | null;
   teamBLabel: string | null;
+  kickoff: Date | string;
 }
 
 interface CircularBracketProps {
   matches: KnockoutMatch[];
 }
 
-// Outer position order: 32 slots clockwise from top.
-// Each pair of adjacent positions are R32 opponents.
-// Groups of 4 → same R16 match. Groups of 8 → same QF match.
 const OUTER_POSITIONS: Array<[number, "home" | "away"]> = [
-  [73, "home"], [73, "away"], [75, "home"], [75, "away"],  // → R16 M1 (89)
-  [76, "home"], [76, "away"], [78, "home"], [78, "away"],  // → R16 M2 (90)
-  [74, "home"], [74, "away"], [77, "home"], [77, "away"],  // → R16 M3 (91)
-  [79, "home"], [79, "away"], [80, "home"], [80, "away"],  // → R16 M4 (92)
-  [81, "home"], [81, "away"], [82, "home"], [82, "away"],  // → R16 M5 (93)
-  [83, "home"], [83, "away"], [84, "home"], [84, "away"],  // → R16 M6 (94)
-  [85, "home"], [85, "away"], [87, "home"], [87, "away"],  // → R16 M7 (95)
-  [86, "home"], [86, "away"], [88, "home"], [88, "away"],  // → R16 M8 (96)
+  [73, "home"], [73, "away"], [75, "home"], [75, "away"],
+  [76, "home"], [76, "away"], [78, "home"], [78, "away"],
+  [74, "home"], [74, "away"], [77, "home"], [77, "away"],
+  [79, "home"], [79, "away"], [80, "home"], [80, "away"],
+  [81, "home"], [81, "away"], [82, "home"], [82, "away"],
+  [83, "home"], [83, "away"], [84, "home"], [84, "away"],
+  [85, "home"], [85, "away"], [87, "home"], [87, "away"],
+  [86, "home"], [86, "away"], [88, "home"], [88, "away"],
 ];
 
-// Match numbers by depth
 const DEPTH_MATCHES: number[][] = [
-  [],                                                   // depth 0 (outer teams, no match)
-  [73, 75, 76, 78, 74, 77, 79, 80, 81, 82, 83, 84, 85, 87, 86, 88], // depth 1 (R32, 16 groups)
-  [89, 90, 91, 92, 93, 94, 95, 96],                    // depth 2 (R16, 8 groups)
-  [97, 98, 99, 100],                                    // depth 3 (QF, 4 groups)
-  [101, 102],                                           // depth 4 (SF, 2 groups)
-  [104],                                                // depth 5 (Final, 1 group)
+  [],
+  [73, 75, 76, 78, 74, 77, 79, 80, 81, 82, 83, 84, 85, 87, 86, 88],
+  [89, 90, 91, 92, 93, 94, 95, 96],
+  [97, 98, 99, 100],
+  [101, 102],
+  [104],
 ];
 
-const CX = 350;
-const CY = 350;
-// Radii: depth 0 = teams outer ring, depth 5 = just before center
+const CX = 350, CY = 350;
 const RADII = [290, 245, 198, 150, 102, 55];
-
 const EMOJI_FONT = "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif";
+const STAGE_LABELS: Record<string, string> = {
+  ROUND_OF_32: "Round of 32",
+  ROUND_OF_16: "Round of 16",
+  QUARTER_FINAL: "Quarter-Final",
+  SEMI_FINAL: "Semi-Final",
+  THIRD_PLACE: "3rd Place",
+  FINAL: "Final",
+};
 
-function polar(cx: number, cy: number, r: number, angle: number): [number, number] {
-  return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+function polar(cx: number, cy: number, r: number, a: number): [number, number] {
+  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
 }
 
 function nodeAngle(depth: number, group: number): number {
-  const groupCount = 32 / Math.pow(2, depth);
-  return ((group + 0.5) / groupCount) * 2 * Math.PI - Math.PI / 2;
+  return ((group + 0.5) / (32 / Math.pow(2, depth))) * 2 * Math.PI - Math.PI / 2;
 }
 
-function teamAngle(posIndex: number): number {
-  return (posIndex / 32) * 2 * Math.PI - Math.PI / 2;
+function teamAngle(i: number): number {
+  return (i / 32) * 2 * Math.PI - Math.PI / 2;
 }
 
 export function CircularBracket({ matches }: CircularBracketProps) {
-  const { matchByNum, activeEdges, activePositions, eliminatedPositions, liveEdges, livePositions, champion } =
-    useMemo(() => {
-      const matchByNum = new Map<number, KnockoutMatch>();
-      for (const m of matches) {
-        if (m.matchNumber !== null) matchByNum.set(m.matchNumber, m);
-      }
+  const [hoveredPos, setHoveredPos] = useState<number | null>(null);
+  const [hoveredMatchNum, setHoveredMatchNum] = useState<number | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-      // activeEdges: Set of "depth:group" strings for winner paths
-      // liveEdges: Set of "depth:group" strings for currently live paths
-      const activeEdges = new Set<string>();
-      const liveEdges = new Set<string>();
+  const {
+    matchByNum, activeEdges, activePositions, eliminatedPositions,
+    liveEdges, livePositions, champion,
+  } = useMemo(() => {
+    const matchByNum = new Map<number, KnockoutMatch>();
+    for (const m of matches) if (m.matchNumber !== null) matchByNum.set(m.matchNumber, m);
 
-      // For depths 1-5, process each group
-      for (let d = 1; d <= 5; d++) {
-        const nums = DEPTH_MATCHES[d];
-        for (let g = 0; g < nums.length; g++) {
-          const m = matchByNum.get(nums[g]);
-          if (!m) continue;
+    const activeEdges = new Set<string>();
+    const liveEdges = new Set<string>();
 
-          const isLive = m.status === "LIVE";
-
-          if (m.winnerId && (m.teamAId || m.teamBId)) {
-            const winnerIsA = m.winnerId === m.teamAId;
-            const winnerChildGroup = winnerIsA ? g * 2 : g * 2 + 1;
-            activeEdges.add(`${d - 1}:${winnerChildGroup}`);
-            if (isLive) liveEdges.add(`${d - 1}:${winnerChildGroup}`);
-          } else if (isLive) {
-            // Both children edges glow teal when live
-            liveEdges.add(`${d - 1}:${g * 2}`);
-            liveEdges.add(`${d - 1}:${g * 2 + 1}`);
-          }
-        }
-      }
-
-      // For outer positions: track which teams won/lost R32
-      const activePositions = new Set<number>(); // won their R32 match
-      const eliminatedPositions = new Set<number>(); // lost their R32 match
-      const livePositions = new Set<number>(); // R32 match is live
-
-      for (let i = 0; i < 32; i++) {
-        const [matchNum, slot] = OUTER_POSITIONS[i];
-        const m = matchByNum.get(matchNum);
+    for (let d = 1; d <= 5; d++) {
+      const nums = DEPTH_MATCHES[d];
+      for (let g = 0; g < nums.length; g++) {
+        const m = matchByNum.get(nums[g]);
         if (!m) continue;
-
-        if (m.status === "LIVE") {
-          livePositions.add(i);
-        } else if (m.winnerId) {
-          const teamId = slot === "home" ? m.teamAId : m.teamBId;
-          if (teamId && m.winnerId === teamId) {
-            activePositions.add(i);
-          } else if (m.winnerId) {
-            eliminatedPositions.add(i);
-          }
+        if (m.winnerId && (m.teamAId || m.teamBId)) {
+          const child = m.winnerId === m.teamAId ? g * 2 : g * 2 + 1;
+          activeEdges.add(`${d - 1}:${child}`);
+        } else if (m.status === "LIVE") {
+          liveEdges.add(`${d - 1}:${g * 2}`);
+          liveEdges.add(`${d - 1}:${g * 2 + 1}`);
         }
       }
+    }
 
-      // Champion from final
-      const finalMatch = matchByNum.get(104);
-      let champion: MatchTeam | null = null;
-      if (finalMatch?.winnerId) {
-        if (finalMatch.winnerId === finalMatch.teamAId) champion = finalMatch.teamA;
-        else if (finalMatch.winnerId === finalMatch.teamBId) champion = finalMatch.teamB;
+    const activePositions = new Set<number>();
+    const eliminatedPositions = new Set<number>();
+    const livePositions = new Set<number>();
+
+    for (let i = 0; i < 32; i++) {
+      const [mn, slot] = OUTER_POSITIONS[i];
+      const m = matchByNum.get(mn);
+      if (!m) continue;
+      if (m.status === "LIVE") livePositions.add(i);
+      else if (m.winnerId) {
+        const tid = slot === "home" ? m.teamAId : m.teamBId;
+        if (tid === m.winnerId) activePositions.add(i);
+        else eliminatedPositions.add(i);
       }
+    }
 
-      return { matchByNum, activeEdges, activePositions, eliminatedPositions, liveEdges, livePositions, champion };
-    }, [matches]);
+    const fin = matchByNum.get(104);
+    let champion: MatchTeam | null = null;
+    if (fin?.winnerId) {
+      champion = fin.winnerId === fin.teamAId ? fin.teamA : fin.teamB;
+    }
 
-  // Build SVG lines
-  const lines: Array<{ x1: number; y1: number; x2: number; y2: number; active: boolean; live: boolean }> = [];
+    return { matchByNum, activeEdges, activePositions, eliminatedPositions, liveEdges, livePositions, champion };
+  }, [matches]);
 
-  // Outer team → R32 node (depth 0 → 1)
+  const hoveredPathEdges = useMemo(() => {
+    if (hoveredPos === null) return new Set<string>();
+    const s = new Set<string>();
+    s.add(`0:${hoveredPos}`);
+    for (let d = 1; d <= 4; d++) s.add(`${d}:${Math.floor(hoveredPos / Math.pow(2, d))}`);
+    return s;
+  }, [hoveredPos]);
+
+  const hoveredMatch = hoveredMatchNum !== null ? (matchByNum.get(hoveredMatchNum) ?? null) : null;
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!wrapperRef.current) return;
+    const r = wrapperRef.current.getBoundingClientRect();
+    setMousePos({ x: e.clientX - r.left, y: e.clientY - r.top });
+  }
+
+  // Build lines
+  type Line = { x1: number; y1: number; x2: number; y2: number; active: boolean; live: boolean; ek: string };
+  const lines: Line[] = [];
+
   for (let i = 0; i < 32; i++) {
-    const r32Group = Math.floor(i / 2);
-    const edgeKey = `0:${i}`;
-    const isActive = activeEdges.has(edgeKey);
-    const isLive = liveEdges.has(edgeKey) || livePositions.has(i);
-
-    const teamAng = teamAngle(i);
-    const nodeAng = nodeAngle(1, r32Group);
-    const [tx, ty] = polar(CX, CY, RADII[0], teamAng);
-    const [nx, ny] = polar(CX, CY, RADII[1], nodeAng);
-    lines.push({ x1: tx, y1: ty, x2: nx, y2: ny, active: isActive, live: isLive });
+    const ek = `0:${i}`;
+    const [tx, ty] = polar(CX, CY, RADII[0], teamAngle(i));
+    const [nx, ny] = polar(CX, CY, RADII[1], nodeAngle(1, Math.floor(i / 2)));
+    lines.push({ x1: tx, y1: ty, x2: nx, y2: ny, active: activeEdges.has(ek), live: liveEdges.has(ek) || livePositions.has(i), ek });
   }
-
-  // R32 → R16 (depth 1 → 2)
   for (let g = 0; g < 16; g++) {
-    const r16Group = Math.floor(g / 2);
-    const edgeKey = `1:${g}`;
-    const isActive = activeEdges.has(edgeKey);
-    const isLive = liveEdges.has(edgeKey);
-
-    const fromAng = nodeAngle(1, g);
-    const toAng = nodeAngle(2, r16Group);
-    const [fx, fy] = polar(CX, CY, RADII[1], fromAng);
-    const [tx, ty] = polar(CX, CY, RADII[2], toAng);
-    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: isActive, live: isLive });
+    const ek = `1:${g}`;
+    const [fx, fy] = polar(CX, CY, RADII[1], nodeAngle(1, g));
+    const [tx, ty] = polar(CX, CY, RADII[2], nodeAngle(2, Math.floor(g / 2)));
+    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
   }
-
-  // R16 → QF (depth 2 → 3)
   for (let k = 0; k < 8; k++) {
-    const qfGroup = Math.floor(k / 2);
-    const edgeKey = `2:${k}`;
-    const isActive = activeEdges.has(edgeKey);
-    const isLive = liveEdges.has(edgeKey);
-
-    const fromAng = nodeAngle(2, k);
-    const toAng = nodeAngle(3, qfGroup);
-    const [fx, fy] = polar(CX, CY, RADII[2], fromAng);
-    const [tx, ty] = polar(CX, CY, RADII[3], toAng);
-    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: isActive, live: isLive });
+    const ek = `2:${k}`;
+    const [fx, fy] = polar(CX, CY, RADII[2], nodeAngle(2, k));
+    const [tx, ty] = polar(CX, CY, RADII[3], nodeAngle(3, Math.floor(k / 2)));
+    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
   }
-
-  // QF → SF (depth 3 → 4)
   for (let l = 0; l < 4; l++) {
-    const sfGroup = Math.floor(l / 2);
-    const edgeKey = `3:${l}`;
-    const isActive = activeEdges.has(edgeKey);
-    const isLive = liveEdges.has(edgeKey);
-
-    const fromAng = nodeAngle(3, l);
-    const toAng = nodeAngle(4, sfGroup);
-    const [fx, fy] = polar(CX, CY, RADII[3], fromAng);
-    const [tx, ty] = polar(CX, CY, RADII[4], toAng);
-    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: isActive, live: isLive });
+    const ek = `3:${l}`;
+    const [fx, fy] = polar(CX, CY, RADII[3], nodeAngle(3, l));
+    const [tx, ty] = polar(CX, CY, RADII[4], nodeAngle(4, Math.floor(l / 2)));
+    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
   }
-
-  // SF → center (depth 4 → 5)
   for (let m2 = 0; m2 < 2; m2++) {
-    const edgeKey = `4:${m2}`;
-    const isActive = activeEdges.has(edgeKey);
-    const isLive = liveEdges.has(edgeKey);
-
-    const fromAng = nodeAngle(4, m2);
-    const [fx, fy] = polar(CX, CY, RADII[4], fromAng);
-    lines.push({ x1: fx, y1: fy, x2: CX, y2: CY, active: isActive, live: isLive });
+    const ek = `4:${m2}`;
+    const [fx, fy] = polar(CX, CY, RADII[4], nodeAngle(4, m2));
+    lines.push({ x1: fx, y1: fy, x2: CX, y2: CY, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
   }
+
+  const TW = 185;
+  const tooltipLeft = mousePos && wrapperRef.current
+    ? (mousePos.x + TW + 16 > wrapperRef.current.offsetWidth ? mousePos.x - TW - 8 : mousePos.x + 12)
+    : 0;
+  const tooltipTop = mousePos ? Math.max(8, mousePos.y - 50) : 0;
+
+  const showTooltip = (hoveredMatch !== null || hoveredPos !== null) && mousePos !== null;
 
   return (
-    <div style={{ width: "100%", maxWidth: 700, margin: "0 auto" }}>
+    <div
+      ref={wrapperRef}
+      style={{ width: "100%", maxWidth: 700, margin: "0 auto", position: "relative" }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => { setHoveredPos(null); setHoveredMatchNum(null); setMousePos(null); }}
+    >
       <svg
         viewBox="0 0 700 700"
-        xmlns="http://www.w3.org/2000/svg"
         style={{ width: "100%", height: "auto", display: "block" }}
-        aria-label="World Cup 2026 bracket visualization"
+        aria-label="World Cup 2026 bracket"
       >
-        {/* Background */}
         <circle cx={CX} cy={CY} r={320} fill="#0a0a12" />
-
-        {/* Subtle ring guides */}
-        {RADII.map((r, idx) => (
-          <circle key={idx} cx={CX} cy={CY} r={r} fill="none" stroke="#1a1a28" strokeWidth={1} />
+        {RADII.map((r, i) => (
+          <circle key={i} cx={CX} cy={CY} r={r} fill="none" stroke="#1a1a28" strokeWidth={1} />
         ))}
 
-        {/* Lines — base layer (non-active) */}
-        {lines.map((l, i) =>
-          !l.active && !l.live ? (
-            <line
-              key={`line-base-${i}`}
-              x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-              stroke="#252538"
-              strokeWidth={1}
-              strokeLinecap="round"
-            />
-          ) : null
-        )}
-
-        {/* Lines — active (winner path) */}
-        {lines.map((l, i) =>
-          l.active && !l.live ? (
-            <line
-              key={`line-active-${i}`}
-              x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-              stroke="#9685E4"
-              strokeWidth={2}
-              strokeLinecap="round"
-            />
-          ) : null
-        )}
-
-        {/* Lines — live (teal) */}
-        {lines.map((l, i) =>
-          l.live ? (
-            <line
-              key={`line-live-${i}`}
-              x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-              stroke="#32BEBF"
-              strokeWidth={2}
-              strokeLinecap="round"
-            />
-          ) : null
-        )}
-
-        {/* Bracket nodes at intermediate radii (depths 1-4) */}
-        {[1, 2, 3, 4].map((d) => {
-          const groupCount = 32 / Math.pow(2, d);
-          const r = RADII[d];
-          const nodeR = 1.5 + d * 0.6; // grows inward
-          return Array.from({ length: groupCount }, (_, g) => {
-            const ang = nodeAngle(d, g);
-            const [nx, ny] = polar(CX, CY, r, ang);
-            const edgeKeyA = `${d - 1}:${g * 2}`;
-            const edgeKeyB = `${d - 1}:${g * 2 + 1}`;
-            const isLive = liveEdges.has(edgeKeyA) || liveEdges.has(edgeKeyB);
-            const isActive = activeEdges.has(edgeKeyA) || activeEdges.has(edgeKeyB);
-            return (
-              <circle
-                key={`node-${d}-${g}`}
-                cx={nx}
-                cy={ny}
-                r={nodeR}
-                fill={isLive ? "#32BEBF" : isActive ? "#9685E4" : "#252538"}
-              />
-            );
-          });
+        {/* Base lines */}
+        {lines.map((l, i) => {
+          if (l.live || l.active || hoveredPathEdges.has(l.ek)) return null;
+          return (
+            <line key={`b${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke={hoveredPos !== null ? "#161624" : "#252538"} strokeWidth={1} strokeLinecap="round" />
+          );
+        })}
+        {/* Active (winner) lines */}
+        {lines.map((l, i) => {
+          if (!l.active || l.live) return null;
+          const hp = hoveredPathEdges.has(l.ek);
+          return (
+            <line key={`a${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke={hp ? "#FE7637" : "#9685E4"} strokeWidth={hp ? 2.5 : 2} strokeLinecap="round" />
+          );
+        })}
+        {/* Hovered path (not yet won — dashed) */}
+        {lines.map((l, i) => {
+          if (!hoveredPathEdges.has(l.ek) || l.active || l.live) return null;
+          return (
+            <line key={`h${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke="#FE7637" strokeWidth={1.5} strokeLinecap="round" strokeDasharray="3 2" />
+          );
+        })}
+        {/* Live lines */}
+        {lines.map((l, i) => {
+          if (!l.live) return null;
+          return (
+            <line key={`v${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke="#32BEBF" strokeWidth={2} strokeLinecap="round" />
+          );
         })}
 
-        {/* Team badges at outer ring */}
+        {/* Match nodes at depths 1-4 */}
+        {[1, 2, 3, 4].flatMap((d) =>
+          Array.from({ length: 32 / Math.pow(2, d) }, (_, g) => {
+            const ang = nodeAngle(d, g);
+            const [nx, ny] = polar(CX, CY, RADII[d], ang);
+            const ekA = `${d - 1}:${g * 2}`, ekB = `${d - 1}:${g * 2 + 1}`;
+            const isLive = liveEdges.has(ekA) || liveEdges.has(ekB);
+            const isActive = activeEdges.has(ekA) || activeEdges.has(ekB);
+            const matchNum = DEPTH_MATCHES[d][g];
+            const isHov = matchNum === hoveredMatchNum;
+            const isOnPath = hoveredPos !== null && (hoveredPathEdges.has(ekA) || hoveredPathEdges.has(ekB));
+            const nr = 1.5 + d * 0.6;
+            return (
+              <g key={`n${d}-${g}`}
+                onMouseEnter={() => { setHoveredMatchNum(matchNum); setHoveredPos(null); }}
+                onMouseLeave={() => setHoveredMatchNum(null)}
+                style={{ cursor: "pointer" }}
+              >
+                <circle cx={nx} cy={ny} r={12} fill="transparent" />
+                {isHov && (
+                  <circle cx={nx} cy={ny} r={nr + 5} fill="none"
+                    stroke={isLive ? "#32BEBF" : "#9685E4"} strokeWidth={1} opacity={0.4} />
+                )}
+                <circle cx={nx} cy={ny}
+                  r={isHov ? nr + 1.5 : nr}
+                  fill={
+                    isHov ? (isLive ? "#32BEBF" : "#9685E4")
+                      : isLive ? "#32BEBF"
+                      : isActive ? "#9685E4"
+                      : isOnPath ? "#FE7637"
+                      : "#252538"
+                  }
+                />
+              </g>
+            );
+          })
+        )}
+
+        {/* Center: Final / Trophy */}
+        <g
+          onMouseEnter={() => { setHoveredMatchNum(104); setHoveredPos(null); }}
+          onMouseLeave={() => setHoveredMatchNum(null)}
+          style={{ cursor: "pointer" }}
+        >
+          <circle cx={CX} cy={CY} r={42} fill="transparent" />
+          <circle cx={CX} cy={CY} r={hoveredMatchNum === 104 ? 35 : 33}
+            fill={champion ? "#1a1a28" : "#141420"}
+            stroke={hoveredMatchNum === 104 ? "#FE7637" : champion ? "#9685E4" : "#2a2a3e"}
+            strokeWidth={hoveredMatchNum === 104 || champion ? 1.5 : 1}
+          />
+          <text x={CX} y={CY} textAnchor="middle" dominantBaseline="central"
+            fontSize={26} style={{ fontFamily: EMOJI_FONT, userSelect: "none", pointerEvents: "none" }}>
+            {champion ? champion.flagEmoji : "🏆"}
+          </text>
+        </g>
+
+        {/* Team badges */}
         {OUTER_POSITIONS.map(([matchNum, slot], i) => {
           const m = matchByNum.get(matchNum);
           const team = slot === "home" ? m?.teamA : m?.teamB;
-          const label = slot === "home"
-            ? (m?.teamA?.name ?? m?.teamALabel ?? "TBD")
-            : (m?.teamB?.name ?? m?.teamBLabel ?? "TBD");
+          const label = team?.name ?? (slot === "home" ? m?.teamALabel : m?.teamBLabel) ?? "TBD";
           const flag = team?.flagEmoji ?? "🏳";
-
-          const isEliminated = eliminatedPositions.has(i);
+          const isElim = eliminatedPositions.has(i);
           const isActive = activePositions.has(i);
           const isLive = livePositions.has(i);
-
+          const isHov = hoveredPos === i;
+          const anyHov = hoveredPos !== null;
+          const opacity = isElim && !isHov ? 0.25 : anyHov && !isHov ? 0.45 : 1;
           const ang = teamAngle(i);
           const [bx, by] = polar(CX, CY, RADII[0], ang);
-
-          const badgeStroke = isLive ? "#32BEBF" : isActive ? "#9685E4" : "#2a2a3e";
-          const opacity = isEliminated ? 0.3 : 1;
+          const stroke = isHov ? "#FE7637" : isLive ? "#32BEBF" : isActive ? "#9685E4" : "#2a2a3e";
 
           return (
-            <g key={`team-${i}`} opacity={opacity}>
+            <g key={`t${i}`} opacity={opacity}
+              onMouseEnter={() => { setHoveredPos(i); setHoveredMatchNum(null); }}
+              onMouseLeave={() => setHoveredPos(null)}
+              style={{ cursor: "pointer" }}
+            >
               <title>{label}</title>
-              <circle
-                cx={bx}
-                cy={by}
-                r={14}
-                fill="#141420"
-                stroke={badgeStroke}
-                strokeWidth={isActive || isLive ? 1.5 : 1}
-              />
-              <text
-                x={bx}
-                y={by}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={13}
-                style={{ fontFamily: EMOJI_FONT, userSelect: "none" }}
-              >
+              <circle cx={bx} cy={by} r={18} fill="transparent" />
+              <circle cx={bx} cy={by} r={isHov ? 16 : 14}
+                fill="#141420" stroke={stroke}
+                strokeWidth={(isActive || isLive || isHov) ? 1.5 : 1} />
+              <text x={bx} y={by} textAnchor="middle" dominantBaseline="central"
+                fontSize={isHov ? 14 : 13}
+                style={{ fontFamily: EMOJI_FONT, userSelect: "none", pointerEvents: "none" }}>
                 {flag}
               </text>
             </g>
           );
         })}
-
-        {/* Center trophy or champion */}
-        {champion ? (
-          <g>
-            <circle cx={CX} cy={CY} r={33} fill="#1a1a28" stroke="#9685E4" strokeWidth={1.5} />
-            <title>{champion.name}</title>
-            <text
-              x={CX}
-              y={CY}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={26}
-              style={{ fontFamily: EMOJI_FONT, userSelect: "none" }}
-            >
-              {champion.flagEmoji}
-            </text>
-          </g>
-        ) : (
-          <g>
-            <circle cx={CX} cy={CY} r={33} fill="#141420" stroke="#2a2a3e" strokeWidth={1} />
-            <title>World Cup Trophy</title>
-            <text
-              x={CX}
-              y={CY}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={26}
-              style={{ fontFamily: EMOJI_FONT, userSelect: "none" }}
-            >
-              🏆
-            </text>
-          </g>
-        )}
       </svg>
+
+      {/* Floating tooltip */}
+      {showTooltip && (
+        <div style={{
+          position: "absolute",
+          left: tooltipLeft,
+          top: tooltipTop,
+          backgroundColor: "var(--card)",
+          border: "1px solid var(--border)",
+          borderRadius: 10,
+          padding: "8px 12px",
+          pointerEvents: "none",
+          zIndex: 10,
+          width: TW,
+        }}>
+          {hoveredMatch ? (
+            <>
+              <p style={{ color: "#9685E4", fontSize: 10, fontWeight: 700, marginBottom: 5 }}>
+                {STAGE_LABELS[hoveredMatch.stage] ?? hoveredMatch.stage}
+              </p>
+              <div style={{ fontSize: 12, lineHeight: "1.7" }}>
+                <p style={{ color: "var(--foreground)" }}>
+                  {hoveredMatch.teamA?.flagEmoji ?? "🏳"} {hoveredMatch.teamA?.name ?? hoveredMatch.teamALabel ?? "TBD"}
+                </p>
+                {(hoveredMatch.status === "FINISHED" || hoveredMatch.status === "LIVE") && hoveredMatch.scoreA !== null ? (
+                  <p style={{ color: "var(--muted-foreground)", fontSize: 11, fontWeight: 700, letterSpacing: "0.5px" }}>
+                    {hoveredMatch.scoreA} — {hoveredMatch.scoreB}
+                    {hoveredMatch.status === "LIVE" && (
+                      <span style={{ color: "#32BEBF", marginLeft: 6 }}>● LIVE</span>
+                    )}
+                  </p>
+                ) : (
+                  <p style={{ color: "var(--muted-foreground)", fontSize: 10 }}>
+                    {new Date(hoveredMatch.kickoff).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
+                    {" · "}
+                    {new Date(hoveredMatch.kickoff).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
+                <p style={{ color: "var(--foreground)" }}>
+                  {hoveredMatch.teamB?.flagEmoji ?? "🏳"} {hoveredMatch.teamB?.name ?? hoveredMatch.teamBLabel ?? "TBD"}
+                </p>
+              </div>
+              {hoveredMatch.status === "FINISHED" && hoveredMatch.winnerId && (
+                <p style={{ color: "#9685E4", fontSize: 10, marginTop: 4 }}>
+                  Winner: {hoveredMatch.winnerId === hoveredMatch.teamAId
+                    ? (hoveredMatch.teamA?.name ?? "Team A")
+                    : (hoveredMatch.teamB?.name ?? "Team B")}
+                </p>
+              )}
+            </>
+          ) : hoveredPos !== null ? (() => {
+            const [mn, slot] = OUTER_POSITIONS[hoveredPos];
+            const m = matchByNum.get(mn);
+            const team = slot === "home" ? m?.teamA : m?.teamB;
+            const name = team?.name ?? (slot === "home" ? m?.teamALabel : m?.teamBLabel) ?? "TBD";
+            const flag = team?.flagEmoji ?? "🏳";
+            const isElim = eliminatedPositions.has(hoveredPos);
+            const isActive = activePositions.has(hoveredPos);
+            const isLive = livePositions.has(hoveredPos);
+            const statusText = isLive ? "● LIVE now" : isActive ? "Still in bracket" : isElim ? "Eliminated" : "TBD";
+            const statusColor = isLive ? "#32BEBF" : isActive ? "#9685E4" : "var(--muted-foreground)";
+            return (
+              <>
+                <p style={{ fontSize: 15, marginBottom: 3 }}>
+                  {flag} <span style={{ color: "var(--foreground)", fontWeight: 600 }}>{name}</span>
+                </p>
+                <p style={{ color: statusColor, fontSize: 10, fontWeight: isLive || isActive ? 700 : 400 }}>
+                  {statusText}
+                </p>
+              </>
+            );
+          })() : null}
+        </div>
+      )}
     </div>
   );
 }
