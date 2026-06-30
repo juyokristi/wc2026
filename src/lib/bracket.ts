@@ -129,18 +129,18 @@ export async function rebuildBracket(): Promise<{
 
     const prefix = feeders.loser ? "L" : "W";
 
-    // Only overwrite a teamId when the feeder has a confirmed result.
-    // When the feeder hasn't finished, leave the current value (may be a valid
-    // standings-derived pre-population from populate-r32).
+    // All BRACKET_FEEDERS targets are R16 or later — populate-r32 never touches them.
+    // So: if the feeder is FINISHED take its winner/loser; otherwise the slot must be null (TBD).
+    // This clears any stale wrong assignment left by a previous incorrect bracket wiring.
     const newHomeId =
       homeFeed?.status === "FINISHED"
         ? (feeders.loser ? getLoserId(homeFeed) : homeFeed.winnerId) ?? null
-        : target.teamAId;
+        : null;
 
     const newAwayId =
       awayFeed?.status === "FINISHED"
         ? (feeders.loser ? getLoserId(awayFeed) : awayFeed.winnerId) ?? null
-        : target.teamBId;
+        : null;
 
     // Labels: null means "team is confirmed — show via relation"; string means TBD placeholder.
     const newHomeLabel = newHomeId ? null : computeLabel(feeders.homeFeeder, prefix, byNum);
