@@ -7,9 +7,9 @@ export const BRACKET_FEEDERS: Record<
   { homeFeeder: number; awayFeeder: number; loser?: true }
 > = {
   89:  { homeFeeder: 73,  awayFeeder: 75  }, // R16 M1: W(R32 M1) vs W(R32 M3)
-  90:  { homeFeeder: 76,  awayFeeder: 78  }, // R16 M2: W(R32 M4) vs W(R32 M6)
-  91:  { homeFeeder: 74,  awayFeeder: 77  }, // R16 M3: W(R32 M2) vs W(R32 M5)
-  92:  { homeFeeder: 79,  awayFeeder: 80  }, // R16 M4: W(R32 M7) vs W(R32 M8)
+  90:  { homeFeeder: 74,  awayFeeder: 78  }, // R16 M2: W(R32 M2) vs W(R32 M6)
+  91:  { homeFeeder: 79,  awayFeeder: 77  }, // R16 M3: W(R32 M7) vs W(R32 M5)
+  92:  { homeFeeder: 76,  awayFeeder: 80  }, // R16 M4: W(R32 M4) vs W(R32 M8)
   93:  { homeFeeder: 81,  awayFeeder: 82  }, // R16 M5: W(R32 M9) vs W(R32 M10)
   94:  { homeFeeder: 83,  awayFeeder: 84  }, // R16 M6: W(R32 M11) vs W(R32 M12)
   95:  { homeFeeder: 85,  awayFeeder: 87  }, // R16 M7: W(R32 M13) vs W(R32 M15)
