@@ -6,18 +6,20 @@ export const BRACKET_FEEDERS: Record<
   number,
   { homeFeeder: number; awayFeeder: number; loser?: true }
 > = {
-  89:  { homeFeeder: 73,  awayFeeder: 75  }, // R16 M1: W(R32 M1) vs W(R32 M3)
-  90:  { homeFeeder: 74,  awayFeeder: 78  }, // R16 M2: W(R32 M2) vs W(R32 M6)
-  91:  { homeFeeder: 79,  awayFeeder: 77  }, // R16 M3: W(R32 M7) vs W(R32 M5)
-  92:  { homeFeeder: 76,  awayFeeder: 80  }, // R16 M4: W(R32 M4) vs W(R32 M8)
-  93:  { homeFeeder: 81,  awayFeeder: 82  }, // R16 M5: W(R32 M9) vs W(R32 M10)
-  94:  { homeFeeder: 83,  awayFeeder: 84  }, // R16 M6: W(R32 M11) vs W(R32 M12)
-  95:  { homeFeeder: 85,  awayFeeder: 87  }, // R16 M7: W(R32 M13) vs W(R32 M15)
-  96:  { homeFeeder: 86,  awayFeeder: 88  }, // R16 M8: W(R32 M14) vs W(R32 M16)
-  97:  { homeFeeder: 89,  awayFeeder: 90  }, // QF M1
-  98:  { homeFeeder: 91,  awayFeeder: 92  }, // QF M2
-  99:  { homeFeeder: 93,  awayFeeder: 94  }, // QF M3
-  100: { homeFeeder: 95,  awayFeeder: 96  }, // QF M4
+  // R16: wiring verified against official WC2026 bracket draw
+  89:  { homeFeeder: 74,  awayFeeder: 77  }, // R16 M89 Philadelphia: W(GER/PAR)=Paraguay vs W(FRA/SWE)
+  90:  { homeFeeder: 73,  awayFeeder: 75  }, // R16 M90 Houston:      W(RSA/CAN)=Canada  vs W(NED/MAR)=Morocco
+  91:  { homeFeeder: 76,  awayFeeder: 78  }, // R16 M91 E.Rutherford: W(BRA/JPN)=Brazil  vs W(CIV/NOR)
+  92:  { homeFeeder: 79,  awayFeeder: 80  }, // R16 M92 Mexico City:  W(MEX/ECU)         vs W(ENG/COD)
+  93:  { homeFeeder: 83,  awayFeeder: 84  }, // R16 M93 Arlington:    W(POR/CRO)         vs W(ESP/AUT)
+  94:  { homeFeeder: 81,  awayFeeder: 82  }, // R16 M94 Seattle:      W(USA/BIH)         vs W(BEL/SEN)
+  95:  { homeFeeder: 86,  awayFeeder: 88  }, // R16 M95 Atlanta:      W(ARG/CPV)         vs W(AUS/EGY)
+  96:  { homeFeeder: 85,  awayFeeder: 87  }, // R16 M96 Vancouver:    W(SUI/ALG)         vs W(COL/GHA)
+  // QF: verified against official schedule
+  97:  { homeFeeder: 89,  awayFeeder: 90  }, // QF M97 Foxborough: W(M89) vs W(M90)
+  98:  { homeFeeder: 93,  awayFeeder: 94  }, // QF M98 Inglewood:  W(M93) vs W(M94)
+  99:  { homeFeeder: 91,  awayFeeder: 92  }, // QF M99 Miami:      W(M91) vs W(M92)
+  100: { homeFeeder: 95,  awayFeeder: 96  }, // QF M100 K.City:   W(M95) vs W(M96)
   101: { homeFeeder: 97,  awayFeeder: 98  }, // SF M1
   102: { homeFeeder: 99,  awayFeeder: 100 }, // SF M2
   103: { homeFeeder: 101, awayFeeder: 102, loser: true }, // 3rd place: L(SF1) vs L(SF2)
