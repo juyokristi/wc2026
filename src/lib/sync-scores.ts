@@ -83,15 +83,15 @@ export async function syncScores(): Promise<{
   const ourMatches = await prisma.match.findMany({
     where: { teamAId: { not: null }, teamBId: { not: null } },
     include: {
-      Team_Match_teamAIdToTeam: { select: { code: true } },
-      Team_Match_teamBIdToTeam: { select: { code: true } },
+      teamA: { select: { code: true } },
+      teamB: { select: { code: true } },
     },
   });
 
   const byTeamPair = new Map<string, (typeof ourMatches)[0]>();
   for (const m of ourMatches) {
-    const teamA = m.Team_Match_teamAIdToTeam;
-    const teamB = m.Team_Match_teamBIdToTeam;
+    const teamA = m.teamA;
+    const teamB = m.teamB;
     if (teamA && teamB) {
       const cA = teamA.code.toUpperCase();
       const cB = teamB.code.toUpperCase();
@@ -122,7 +122,7 @@ export async function syncScores(): Promise<{
     const m = byTeamPair.get(`${dbStage}:${homeCode}-${awayCode}`);
     if (!m) continue;
 
-    const teamAIsHome = m.Team_Match_teamAIdToTeam!.code.toUpperCase() === homeCode;
+    const teamAIsHome = m.teamA!.code.toUpperCase() === homeCode;
     const kickoff = new Date(event.date);
     const { completed, name: statusName } = comp.status.type;
 

@@ -89,8 +89,8 @@ export async function rebuildBracket(): Promise<{
       winnerId: true,
       scoreA: true,
       scoreB: true,
-      Team_Match_teamAIdToTeam: { select: { name: true } },
-      Team_Match_teamBIdToTeam: { select: { name: true } },
+      teamA: { select: { name: true } },
+      teamB: { select: { name: true } },
     },
   });
 
@@ -108,8 +108,8 @@ export async function rebuildBracket(): Promise<{
         winnerId: r.winnerId,
         scoreA: r.scoreA,
         scoreB: r.scoreB,
-        teamAName: r.Team_Match_teamAIdToTeam?.name ?? null,
-        teamBName: r.Team_Match_teamBIdToTeam?.name ?? null,
+        teamAName: r.teamA?.name ?? null,
+        teamBName: r.teamB?.name ?? null,
       },
     ])
   );
