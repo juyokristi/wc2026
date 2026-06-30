@@ -7,24 +7,30 @@ interface CircularBracketProps {
   matches: KnockoutMatch[];
 }
 
+// Outer ring order must be consistent with BRACKET_FEEDERS in bracket.ts.
+// Each pair of 2 = one R32 match. Each group of 4 = two matches feeding one R16 slot.
+// Each group of 8 = QF half. Each group of 16 = SF half.
+//
+// SF1 (M101): QF97 [M89: M74+M77, M90: M73+M75] + QF98 [M93: M83+M84, M94: M81+M82]
+// SF2 (M102): QF99 [M91: M76+M78, M92: M79+M80] + QF100[M95: M86+M88, M96: M85+M87]
 const OUTER_POSITIONS: Array<[number, "home" | "away"]> = [
-  [73, "home"], [73, "away"], [75, "home"], [75, "away"],
-  [76, "home"], [76, "away"], [78, "home"], [78, "away"],
-  [74, "home"], [74, "away"], [77, "home"], [77, "away"],
-  [79, "home"], [79, "away"], [80, "home"], [80, "away"],
-  [81, "home"], [81, "away"], [82, "home"], [82, "away"],
-  [83, "home"], [83, "away"], [84, "home"], [84, "away"],
-  [85, "home"], [85, "away"], [87, "home"], [87, "away"],
-  [86, "home"], [86, "away"], [88, "home"], [88, "away"],
+  [74, "home"], [74, "away"], [77, "home"], [77, "away"], // M89: Paraguay + W(FRA/SWE)
+  [73, "home"], [73, "away"], [75, "home"], [75, "away"], // M90: Canada + Morocco
+  [83, "home"], [83, "away"], [84, "home"], [84, "away"], // M93: W(POR/CRO) + W(ESP/AUT)
+  [81, "home"], [81, "away"], [82, "home"], [82, "away"], // M94: W(USA/BIH) + W(BEL/SEN)
+  [76, "home"], [76, "away"], [78, "home"], [78, "away"], // M91: Brazil + W(CIV/NOR)
+  [79, "home"], [79, "away"], [80, "home"], [80, "away"], // M92: W(MEX/ECU) + W(ENG/COD)
+  [86, "home"], [86, "away"], [88, "home"], [88, "away"], // M95: W(ARG/CPV) + W(AUS/EGY)
+  [85, "home"], [85, "away"], [87, "home"], [87, "away"], // M96: W(SUI/ALG) + W(COL/GHA)
 ];
 
 const DEPTH_MATCHES: number[][] = [
   [],
-  [73, 75, 76, 78, 74, 77, 79, 80, 81, 82, 83, 84, 85, 87, 86, 88],
-  [89, 90, 91, 92, 93, 94, 95, 96],
-  [97, 98, 99, 100],
-  [101, 102],
-  [104],
+  [74, 77, 73, 75, 83, 84, 81, 82, 76, 78, 79, 80, 86, 88, 85, 87], // R32
+  [89, 90, 93, 94, 91, 92, 95, 96],                                   // R16
+  [97, 98, 99, 100],                                                   // QF
+  [101, 102],                                                          // SF
+  [104],                                                               // Final
 ];
 
 const CX = 350, CY = 350;
@@ -295,12 +301,12 @@ export function CircularBracket({ matches }: CircularBracketProps) {
               style={{ cursor: "pointer" }}
             >
               <title>{label}</title>
-              <circle cx={bx} cy={by} r={18} fill="transparent" />
-              <circle cx={bx} cy={by} r={isHov ? 16 : 14}
+              <circle cx={bx} cy={by} r={22} fill="transparent" />
+              <circle cx={bx} cy={by} r={isHov ? 20 : 18}
                 fill="#141420" stroke={stroke}
                 strokeWidth={(isActive || isLive || isHov) ? 1.5 : 1} />
               <text x={bx} y={by} textAnchor="middle" dominantBaseline="central"
-                fontSize={isHov ? 14 : 13}
+                fontSize={isHov ? 16 : 15}
                 style={{ fontFamily: EMOJI_FONT, userSelect: "none", pointerEvents: "none" }}>
                 {flag}
               </text>

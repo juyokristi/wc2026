@@ -71,7 +71,7 @@ function MatchCard({ m, pred }: { m: KnockoutMatch; pred: MatchPred | undefined 
         }}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm">{flagA}</span>
+          <span className="text-base">{flagA}</span>
           <span className="text-xs font-medium truncate" style={{ color: "var(--foreground)" }}>{teamA}</span>
         </div>
         {(finished || live) && m.scoreA !== null && (
@@ -90,7 +90,7 @@ function MatchCard({ m, pred }: { m: KnockoutMatch; pred: MatchPred | undefined 
         }}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm">{flagB}</span>
+          <span className="text-base">{flagB}</span>
           <span className="text-xs font-medium truncate" style={{ color: "var(--foreground)" }}>{teamB}</span>
         </div>
         {(finished || live) && m.scoreB !== null && (
