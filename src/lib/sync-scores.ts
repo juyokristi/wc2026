@@ -7,6 +7,17 @@ const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.wor
 const WC_START_STR = "2026-06-11";
 const WC_END_STR   = "2026-07-19";
 
+// ESPN season.slug → our DB stage value
+const ESPN_SLUG_TO_STAGE: Record<string, string> = {
+  "group-stage":    "GROUP",
+  "round-of-32":    "ROUND_OF_32",
+  "round-of-16":    "ROUND_OF_16",
+  "quarterfinals":  "QUARTER_FINAL",
+  "semifinals":     "SEMI_FINAL",
+  "3rd-place-match":"THIRD_PLACE",
+  "final":          "FINAL",
+};
+
 interface EspnCompetitor {
   homeAway: "home" | "away";
   score: string;
@@ -17,6 +28,7 @@ interface EspnCompetitor {
 interface EspnEvent {
   id: string;
   date: string; // ISO UTC
+  season?: { slug: string };
   competitions: Array<{
     status: { type: { name: string; completed: boolean } };
     competitors: EspnCompetitor[];
@@ -47,7 +59,6 @@ async function fetchDay(dateStr: string): Promise<EspnEvent[]> {
 // WC2026 bracket progression: matchNumber → next match + which slot the winner fills.
 // R32 (73-88) → R16 (89-96) → QF (97-100) → SF (101-102) → Final (104).
 // Loser of each SF feeds match 103 (3rd place).
-// R32 DB matchNumbers 73-88 (M1-M16); R16 DB 89-96 (M1-M8); QF 97-100; SF 101-102.
 // R32 → R16 pairings sourced from official WC2026 draw (flashfootball.com confirmed):
 //   M1(73)+M3(75)→89, M4(76)+M6(78)→90, M2(74)+M5(77)→91, M7(79)+M8(80)→92,
 //   M9(81)+M10(82)→93, M11(83)+M12(84)→94, M13(85)+M15(87)→95, M14(86)+M16(88)→96
@@ -80,12 +91,10 @@ async function propagateKnockoutWinners(): Promise<number> {
   });
   if (finishedKnockout.length === 0) return 0;
 
-  // Collect all next-match numbers we need to update
   const nextMatchNums = new Set<number>();
   for (const m of finishedKnockout) {
     const next = BRACKET_NEXT[m.matchNumber!];
     if (next) nextMatchNums.add(next.nextMatch);
-    // SF losers go to 3rd place match 103
     if (m.matchNumber === 101 || m.matchNumber === 102) nextMatchNums.add(103);
   }
 
@@ -95,7 +104,6 @@ async function propagateKnockoutWinners(): Promise<number> {
   });
   const targetByNum = new Map(targets.map(t => [t.matchNumber!, t]));
 
-  // Load team names for labels
   const teamIds = new Set<string>();
   for (const m of finishedKnockout) {
     if (m.winnerId) teamIds.add(m.winnerId);
@@ -111,7 +119,6 @@ async function propagateKnockoutWinners(): Promise<number> {
   let propagated = 0;
 
   for (const m of finishedKnockout) {
-    // Winner → next bracket slot
     const next = BRACKET_NEXT[m.matchNumber!];
     if (next && m.winnerId) {
       const target = targetByNum.get(next.nextMatch);
@@ -120,8 +127,6 @@ async function propagateKnockoutWinners(): Promise<number> {
         const alreadySet = next.slot === "home" ? target.teamAId === m.winnerId
                                                  : target.teamBId === m.winnerId;
         if (!alreadySet) {
-          // If a wrongly-assigned team pair was accidentally scored (e.g. a group-stage
-          // result matched against a future knockout slot), clear the stale score.
           const staleScore = target.status === "FINISHED" || target.status === "LIVE";
           await prisma.match.update({
             where: { id: target.id },
@@ -164,6 +169,72 @@ async function propagateKnockoutWinners(): Promise<number> {
   return propagated;
 }
 
+// Uses ESPN's own confirmed bracket data to assign teams to knockout slots.
+// Matches by kickoff time (±30 min) rather than team codes — bypasses any
+// team-code mismatch issues and works even before BRACKET_NEXT propagation runs.
+async function assignKnockoutTeamsFromEspn(allEvents: EspnEvent[]): Promise<number> {
+  const knockoutSlots = await prisma.match.findMany({
+    where: { stage: { not: "GROUP" } },
+    select: { id: true, stage: true, kickoff: true, teamAId: true, teamBId: true, status: true },
+  });
+
+  const allTeams = await prisma.team.findMany({ select: { id: true, code: true, name: true } });
+  const teamByCode = new Map(allTeams.map(t => [t.code.toUpperCase(), t]));
+
+  let assigned = 0;
+
+  for (const event of allEvents) {
+    const slug = event.season?.slug ?? "";
+    const dbStage = ESPN_SLUG_TO_STAGE[slug];
+    if (!dbStage || dbStage === "GROUP") continue;
+
+    const comp = event.competitions[0];
+    if (!comp) continue;
+
+    const homeComp = comp.competitors.find(c => c.homeAway === "home");
+    const awayComp = comp.competitors.find(c => c.homeAway === "away");
+    if (!homeComp || !awayComp) continue;
+
+    const homeCode = homeComp.team.abbreviation.toUpperCase();
+    const awayCode = awayComp.team.abbreviation.toUpperCase();
+
+    // Find matching DB slot by stage + kickoff time (±30 min)
+    const eventMs = new Date(event.date).getTime();
+    const slot = knockoutSlots.find(s =>
+      s.stage === dbStage &&
+      Math.abs(s.kickoff.getTime() - eventMs) <= 30 * 60 * 1000
+    );
+    if (!slot) continue;
+    // Don't overwrite in-progress or finished matches
+    if (slot.status === "FINISHED" || slot.status === "LIVE") continue;
+
+    const updates: Record<string, string | null> = {};
+
+    if (homeCode !== "RD32") {
+      const team = teamByCode.get(homeCode);
+      if (team && slot.teamAId !== team.id) {
+        updates.teamAId = team.id;
+        updates.teamALabel = null; // team.name takes precedence via relation
+        assigned++;
+      }
+    }
+    if (awayCode !== "RD32") {
+      const team = teamByCode.get(awayCode);
+      if (team && slot.teamBId !== team.id) {
+        updates.teamBId = team.id;
+        updates.teamBLabel = null;
+        assigned++;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.match.update({ where: { id: slot.id }, data: updates });
+    }
+  }
+
+  return assigned;
+}
+
 export async function syncScores(): Promise<{
   scoresUpdated: number;
   kickoffsFixed: number;
@@ -171,8 +242,6 @@ export async function syncScores(): Promise<{
   checked: number;
   unseenFdStages: string[];
 }> {
-  // Fetch all tournament dates from June 11 through today + 14 days ahead
-  // (covers active group stage + upcoming R32 kickoff updates)
   const start = new Date(WC_START_STR);
   const end = new Date(
     Math.min(
@@ -195,7 +264,12 @@ export async function syncScores(): Promise<{
     allEvents.push(...batch.flat());
   }
 
-  // Load DB matches that have both teams confirmed
+  // Step 1: assign confirmed teams to knockout slots directly from ESPN bracket data
+  const espnAssigned = await assignKnockoutTeamsFromEspn(allEvents);
+
+  // Step 2: load DB matches with both teams confirmed, keyed by STAGE+team pair
+  // — including stage in the key prevents group-stage scores from ever matching
+  //   a knockout slot that happens to share the same two team codes
   const ourMatches = await prisma.match.findMany({
     where: { teamAId: { not: null }, teamBId: { not: null } },
     include: {
@@ -207,8 +281,10 @@ export async function syncScores(): Promise<{
   const byTeamPair = new Map<string, (typeof ourMatches)[0]>();
   for (const m of ourMatches) {
     if (m.teamA && m.teamB) {
-      byTeamPair.set(`${m.teamA.code}-${m.teamB.code}`, m);
-      byTeamPair.set(`${m.teamB.code}-${m.teamA.code}`, m);
+      const cA = m.teamA.code.toUpperCase();
+      const cB = m.teamB.code.toUpperCase();
+      byTeamPair.set(`${m.stage}:${cA}-${cB}`, m);
+      byTeamPair.set(`${m.stage}:${cB}-${cA}`, m);
     }
   }
 
@@ -227,7 +303,12 @@ export async function syncScores(): Promise<{
     const awayCode = awayComp.team.abbreviation.toUpperCase();
     if (!homeCode || !awayCode) continue;
 
-    const m = byTeamPair.get(`${homeCode}-${awayCode}`);
+    // Resolve the ESPN stage slug to our DB stage; skip events with unknown slugs
+    const slug = event.season?.slug ?? "";
+    const dbStage = ESPN_SLUG_TO_STAGE[slug];
+    if (!dbStage) continue;
+
+    const m = byTeamPair.get(`${dbStage}:${homeCode}-${awayCode}`);
     if (!m) continue;
 
     const teamAIsHome = m.teamA!.code.toUpperCase() === homeCode;
@@ -315,12 +396,13 @@ export async function syncScores(): Promise<{
     }
   }
 
-  const knockoutAssigned = await propagateKnockoutWinners();
+  // Step 3: propagate winners through bracket (fallback / catches cases ESPN hasn't confirmed yet)
+  const propagated = await propagateKnockoutWinners();
 
   return {
     scoresUpdated,
     kickoffsFixed,
-    knockoutAssigned,
+    knockoutAssigned: espnAssigned + propagated,
     checked: allEvents.length,
     unseenFdStages: [],
   };
