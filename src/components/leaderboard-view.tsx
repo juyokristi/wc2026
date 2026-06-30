@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { LeaderboardChart } from "@/components/leaderboard-chart";
+
+export type ChartPoint = { day: string; cum: number };
+export type ChartSeries = { userId: string; name: string; total: number; points: ChartPoint[] };
 
 export interface UserStats {
   userId: string;
@@ -83,31 +87,57 @@ function rankDisplay(rank: number) {
 interface Props {
   stats: UserStats[];
   currentUserId: string | null;
+  chartSeries?: ChartSeries[];
 }
 
-export function LeaderboardView({ stats, currentUserId }: Props) {
+export function LeaderboardView({ stats, currentUserId, chartSeries = [] }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("total");
+  const [showChart, setShowChart] = useState(false);
 
   const sorted = [...stats].sort((a, b) => getTabValue(b, activeTab) - getTabValue(a, activeTab));
 
   return (
     <div className="space-y-4">
-      {/* Tab strip */}
-      <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-        {TABS.map((tab) => (
+      {/* Chart toggle + tab strip */}
+      <div className="flex items-center gap-2">
+        {chartSeries.length > 0 && (
           <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => setShowChart((v) => !v)}
             className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
             style={{
-              backgroundColor: activeTab === tab.key ? "#9685E4" : "var(--muted)",
-              color: activeTab === tab.key ? "#fff" : "var(--muted-foreground)",
+              backgroundColor: showChart ? "#32BEBF" : "var(--muted)",
+              color: showChart ? "#fff" : "var(--muted-foreground)",
             }}
           >
-            {tab.label}
+            Chart
           </button>
-        ))}
+        )}
+        <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
+              style={{
+                backgroundColor: activeTab === tab.key ? "#9685E4" : "var(--muted)",
+                color: activeTab === tab.key ? "#fff" : "var(--muted-foreground)",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Chart */}
+      {showChart && chartSeries.length > 0 && (
+        <div
+          className="rounded-2xl px-4 pt-4 pb-2"
+          style={{ border: "1px solid var(--border)", backgroundColor: "var(--card)" }}
+        >
+          <LeaderboardChart series={chartSeries} currentUserId={currentUserId} />
+        </div>
+      )}
 
       {/* Table */}
       <div

@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { LeaderboardScroller } from "@/components/leaderboard-scroller";
-import { LeaderboardView, type UserStats } from "@/components/leaderboard-view";
+import { LeaderboardView, type UserStats, type ChartSeries, type ChartPoint } from "@/components/leaderboard-view";
 
 export const revalidate = 60;
 
@@ -115,6 +115,31 @@ export default async function LeaderboardPage() {
 
   const stats = [...statsMap.values()].sort((a, b) => b.totalPts - a.totalPts);
 
+  // Chart: cumulative points per user per match day
+  const allDays = [...new Set(
+    allPredictions.map((p) => p.match.kickoff.toISOString().split("T")[0])
+  )].sort();
+
+  const chartSeries: ChartSeries[] = stats
+    .filter((s) => s.totalPts > 0)
+    .map((s) => {
+      const dayMap = new Map<string, number>();
+      for (const p of allPredictions) {
+        if (p.user.id !== s.userId || p.pointsEarned === null) continue;
+        const day = p.match.kickoff.toISOString().split("T")[0];
+        dayMap.set(day, (dayMap.get(day) ?? 0) + p.pointsEarned);
+      }
+      let cum = 0;
+      const points: ChartPoint[] = [
+        { day: "", cum: 0 }, // synthetic start at 0
+        ...allDays.map((day) => {
+          cum += dayMap.get(day) ?? 0;
+          return { day, cum };
+        }),
+      ];
+      return { userId: s.userId, name: s.name, total: s.totalPts, points };
+    });
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <LeaderboardScroller />
@@ -160,6 +185,7 @@ export default async function LeaderboardPage() {
       <LeaderboardView
         stats={stats}
         currentUserId={session?.user?.id ?? null}
+        chartSeries={chartSeries}
       />
     </div>
   );
