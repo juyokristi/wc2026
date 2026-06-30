@@ -81,6 +81,7 @@ export function CircularBracket({ matches }: CircularBracketProps) {
         if (m.winnerId && (m.teamAId || m.teamBId)) {
           const child = m.winnerId === m.teamAId ? g * 2 : g * 2 + 1;
           activeEdges.add(`${d - 1}:${child}`);
+          activeEdges.add(`${d}:${g}`); // winner advances to next round
         } else if (m.status === "LIVE") {
           liveEdges.add(`${d - 1}:${g * 2}`);
           liveEdges.add(`${d - 1}:${g * 2 + 1}`);
@@ -301,12 +302,12 @@ export function CircularBracket({ matches }: CircularBracketProps) {
               style={{ cursor: "pointer" }}
             >
               <title>{label}</title>
-              <circle cx={bx} cy={by} r={22} fill="transparent" />
-              <circle cx={bx} cy={by} r={isHov ? 20 : 18}
+              <circle cx={bx} cy={by} r={26} fill="transparent" />
+              <circle cx={bx} cy={by} r={isHov ? 23 : 21}
                 fill="#141420" stroke={stroke}
                 strokeWidth={(isActive || isLive || isHov) ? 1.5 : 1} />
               <text x={bx} y={by} textAnchor="middle" dominantBaseline="central"
-                fontSize={isHov ? 16 : 15}
+                fontSize={isHov ? 19 : 17}
                 style={{ fontFamily: EMOJI_FONT, userSelect: "none", pointerEvents: "none" }}>
                 {flag}
               </text>
