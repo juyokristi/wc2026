@@ -4,8 +4,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface RebuildResult {
-  assigned: number;
+  teamsAssigned: number;
+  kickoffsUpdated: number;
+  bracketAssigned: number;
   labelsUpdated: number;
+  unmatched: string[];
+  missingCodes: string[];
 }
 
 export function AdminRebuildBracketButton() {
@@ -42,11 +46,18 @@ export function AdminRebuildBracketButton() {
 
       {result && (
         <div
-          className="rounded-xl px-4 py-3 space-y-1 text-xs"
+          className="rounded-xl px-4 py-3 space-y-2 text-xs"
           style={{ backgroundColor: "rgba(50,190,191,0.08)", border: "1px solid rgba(50,190,191,0.25)" }}
         >
           <p className="font-semibold" style={{ color: "#32BEBF" }}>Rebuild complete</p>
-          <p>{result.assigned} slot{result.assigned !== 1 ? "s" : ""} assigned · {result.labelsUpdated} label{result.labelsUpdated !== 1 ? "s" : ""} updated</p>
+          <p>{result.teamsAssigned} team{result.teamsAssigned !== 1 ? "s" : ""} assigned from FD · {result.kickoffsUpdated} kickoff{result.kickoffsUpdated !== 1 ? "s" : ""} updated</p>
+          <p>{result.bracketAssigned} bracket slot{result.bracketAssigned !== 1 ? "s" : ""} propagated · {result.labelsUpdated} label{result.labelsUpdated !== 1 ? "s" : ""} updated</p>
+          {result.unmatched.length > 0 && (
+            <p style={{ color: "#FE7637" }}>Unmatched: {result.unmatched.join(", ")}</p>
+          )}
+          {result.missingCodes.length > 0 && (
+            <p style={{ color: "#FE7637" }}>Missing team codes: {result.missingCodes.join(", ")}</p>
+          )}
         </div>
       )}
     </div>

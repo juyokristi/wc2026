@@ -169,9 +169,9 @@ export default async function AdminPage() {
             className="text-sm mt-0.5"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Recomputes all R16–Final slot assignments from finished match results and
-            refreshes all TBD labels. Run this after manually editing match data or
-            whenever bracket slots look wrong. Also runs automatically as part of Score Sync.
+            Syncs confirmed knockout team assignments directly from Football-Data.org,
+            then propagates all finished-match winners into future slots and refreshes
+            TBD labels. Use this to fix wrong bracket assignments.
           </p>
         </div>
 
