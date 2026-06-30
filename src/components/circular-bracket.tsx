@@ -36,6 +36,28 @@ const DEPTH_MATCHES: number[][] = [
 const CX = 350, CY = 350;
 const RADII = [290, 245, 198, 150, 102, 55];
 const EMOJI_FONT = "Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif";
+
+// FIFA 3-letter → ISO 3166-1 alpha-2 (flagcdn.com uses these)
+const FIFA_TO_ISO2: Record<string, string> = {
+  MEX:"mx", RSA:"za", KOR:"kr", CZE:"cz",
+  CAN:"ca", QAT:"qa", SUI:"ch", BIH:"ba",
+  BRA:"br", MAR:"ma", HAI:"ht", SCO:"gb-sct",
+  USA:"us", PAR:"py", TUR:"tr", AUS:"au",
+  GER:"de", CIV:"ci", ECU:"ec", CUW:"cw",
+  JPN:"jp", NED:"nl", SWE:"se", TUN:"tn",
+  BEL:"be", EGY:"eg", IRN:"ir", NZL:"nz",
+  ESP:"es", KSA:"sa", URU:"uy", CPV:"cv",
+  FRA:"fr", SEN:"sn", IRQ:"iq", NOR:"no",
+  ARG:"ar", ALG:"dz", AUT:"at", JOR:"jo",
+  POR:"pt", COL:"co", COD:"cd", UZB:"uz",
+  ENG:"gb-eng", CRO:"hr", GHA:"gh", PAN:"pa",
+};
+
+function flagUrl(code: string): string | null {
+  const iso2 = FIFA_TO_ISO2[code.toUpperCase()];
+  return iso2 ? `https://flagcdn.com/w80/${iso2}.png` : null;
+}
+
 const STAGE_LABELS: Record<string, string> = {
   ROUND_OF_32: "Round of 32",
   ROUND_OF_16: "Round of 16",
@@ -279,12 +301,22 @@ export function CircularBracket({ matches }: CircularBracketProps) {
           </text>
         </g>
 
+        {/* Team badges — clip-path defs */}
+        <defs>
+          {OUTER_POSITIONS.map((_, i) => (
+            <clipPath key={`cp${i}`} id={`flag-clip-${i}`}>
+              <circle cx={0} cy={0} r={21} />
+            </clipPath>
+          ))}
+        </defs>
+
         {/* Team badges */}
         {OUTER_POSITIONS.map(([matchNum, slot], i) => {
           const m = matchByNum.get(matchNum);
           const team = slot === "home" ? m?.teamA : m?.teamB;
           const label = team?.name ?? (slot === "home" ? m?.teamALabel : m?.teamBLabel) ?? "TBD";
-          const flag = team?.flagEmoji ?? "🏳";
+          const imgUrl = team?.code ? flagUrl(team.code) : null;
+          const flagEmoji = team?.flagEmoji ?? "🏳";
           const isElim = eliminatedPositions.has(i);
           const isActive = activePositions.has(i);
           const isLive = livePositions.has(i);
@@ -294,23 +326,42 @@ export function CircularBracket({ matches }: CircularBracketProps) {
           const ang = teamAngle(i);
           const [bx, by] = polar(CX, CY, RADII[0], ang);
           const stroke = isHov ? "#FE7637" : isLive ? "#32BEBF" : isActive ? "#9685E4" : "#2a2a3e";
+          const r = isHov ? 23 : 21;
 
           return (
             <g key={`t${i}`} opacity={opacity}
               onMouseEnter={() => { setHoveredPos(i); setHoveredMatchNum(null); }}
               onMouseLeave={() => setHoveredPos(null)}
               style={{ cursor: "pointer" }}
+              transform={`translate(${bx},${by})`}
             >
               <title>{label}</title>
-              <circle cx={bx} cy={by} r={26} fill="transparent" />
-              <circle cx={bx} cy={by} r={isHov ? 23 : 21}
-                fill="#141420" stroke={stroke}
-                strokeWidth={(isActive || isLive || isHov) ? 1.5 : 1} />
-              <text x={bx} y={by} textAnchor="middle" dominantBaseline="central"
-                fontSize={isHov ? 19 : 17}
-                style={{ fontFamily: EMOJI_FONT, userSelect: "none", pointerEvents: "none" }}>
-                {flag}
-              </text>
+              <circle cx={0} cy={0} r={26} fill="transparent" />
+              {imgUrl ? (
+                <>
+                  <circle cx={0} cy={0} r={21} fill="#141420" />
+                  <image
+                    href={imgUrl}
+                    x={-21} y={-21} width={42} height={42}
+                    clipPath={`url(#flag-clip-${i})`}
+                    preserveAspectRatio="xMidYMid slice"
+                    style={{ pointerEvents: "none" }}
+                  />
+                  {/* stroke ring: expands slightly on hover to show selection */}
+                  <circle cx={0} cy={0} r={r} fill="none" stroke={stroke}
+                    strokeWidth={(isActive || isLive || isHov) ? 1.5 : 1} />
+                </>
+              ) : (
+                <>
+                  <circle cx={0} cy={0} r={r} fill="#141420" stroke={stroke}
+                    strokeWidth={(isActive || isLive || isHov) ? 1.5 : 1} />
+                  <text x={0} y={0} textAnchor="middle" dominantBaseline="central"
+                    fontSize={isHov ? 19 : 17}
+                    style={{ fontFamily: EMOJI_FONT, userSelect: "none", pointerEvents: "none" }}>
+                    {flagEmoji}
+                  </text>
+                </>
+              )}
             </g>
           );
         })}
