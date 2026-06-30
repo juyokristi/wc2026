@@ -1,29 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef } from "react";
-
-interface MatchTeam {
-  name: string;
-  flagEmoji: string;
-  code: string;
-}
-
-interface KnockoutMatch {
-  id: string;
-  matchNumber: number | null;
-  stage: string;
-  status: string;
-  scoreA: number | null;
-  scoreB: number | null;
-  winnerId: string | null;
-  teamAId: string | null;
-  teamBId: string | null;
-  teamA: MatchTeam | null;
-  teamB: MatchTeam | null;
-  teamALabel: string | null;
-  teamBLabel: string | null;
-  kickoff: Date | string;
-}
+import type { KnockoutMatch, MatchTeam } from "@/components/bracket-view";
 
 interface CircularBracketProps {
   matches: KnockoutMatch[];
