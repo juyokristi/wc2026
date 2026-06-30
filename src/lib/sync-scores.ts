@@ -47,25 +47,27 @@ async function fetchDay(dateStr: string): Promise<EspnEvent[]> {
 // WC2026 bracket progression: matchNumber → next match + which slot the winner fills.
 // R32 (73-88) → R16 (89-96) → QF (97-100) → SF (101-102) → Final (104).
 // Loser of each SF feeds match 103 (3rd place).
+// Sourced from the confirmed WC2026 draw bracket.
+// R32 M1-16 map to DB matchNumbers 73-88; R16 M1-8 → 89-96; QF M1-4 → 97-100; SF → 101-102.
 const BRACKET_NEXT: Record<number, { nextMatch: number; slot: "home" | "away" }> = {
-  // R32 → R16
-  73: { nextMatch: 89, slot: "home" }, 74: { nextMatch: 89, slot: "away" },
-  75: { nextMatch: 90, slot: "home" }, 76: { nextMatch: 90, slot: "away" },
-  77: { nextMatch: 91, slot: "home" }, 78: { nextMatch: 91, slot: "away" },
-  79: { nextMatch: 92, slot: "home" }, 80: { nextMatch: 92, slot: "away" },
-  81: { nextMatch: 93, slot: "home" }, 82: { nextMatch: 93, slot: "away" },
-  83: { nextMatch: 94, slot: "home" }, 84: { nextMatch: 94, slot: "away" },
-  85: { nextMatch: 95, slot: "home" }, 86: { nextMatch: 95, slot: "away" },
-  87: { nextMatch: 96, slot: "home" }, 88: { nextMatch: 96, slot: "away" },
+  // R32 → R16 (cross-bracket pairings per official draw)
+  76: { nextMatch: 89, slot: "home" }, 74: { nextMatch: 89, slot: "away" }, // R16 M1
+  73: { nextMatch: 90, slot: "home" }, 75: { nextMatch: 90, slot: "away" }, // R16 M2
+  79: { nextMatch: 91, slot: "home" }, 80: { nextMatch: 91, slot: "away" }, // R16 M3
+  77: { nextMatch: 92, slot: "home" }, 78: { nextMatch: 92, slot: "away" }, // R16 M4
+  83: { nextMatch: 93, slot: "home" }, 84: { nextMatch: 93, slot: "away" }, // R16 M5
+  81: { nextMatch: 94, slot: "home" }, 82: { nextMatch: 94, slot: "away" }, // R16 M6
+  87: { nextMatch: 95, slot: "home" }, 88: { nextMatch: 95, slot: "away" }, // R16 M7
+  85: { nextMatch: 96, slot: "home" }, 86: { nextMatch: 96, slot: "away" }, // R16 M8
   // R16 → QF
-  89: { nextMatch: 97, slot: "home" }, 90: { nextMatch: 97, slot: "away" },
-  91: { nextMatch: 98, slot: "home" }, 92: { nextMatch: 98, slot: "away" },
-  93: { nextMatch: 99, slot: "home" }, 94: { nextMatch: 99, slot: "away" },
-  95: { nextMatch: 100, slot: "home" }, 96: { nextMatch: 100, slot: "away" },
+  91: { nextMatch: 97, slot: "home" }, 92: { nextMatch: 97, slot: "away" }, // QF M1
+  89: { nextMatch: 98, slot: "home" }, 90: { nextMatch: 98, slot: "away" }, // QF M2
+  95: { nextMatch: 99, slot: "home" }, 96: { nextMatch: 99, slot: "away" }, // QF M3
+  93: { nextMatch: 100, slot: "home" }, 94: { nextMatch: 100, slot: "away" }, // QF M4
   // QF → SF
-  97: { nextMatch: 101, slot: "home" }, 98: { nextMatch: 101, slot: "away" },
-  99: { nextMatch: 102, slot: "home" }, 100: { nextMatch: 102, slot: "away" },
-  // SF → Final (winners) and 3rd place (losers handled below)
+  99: { nextMatch: 101, slot: "home" }, 100: { nextMatch: 101, slot: "away" }, // SF M1
+  97: { nextMatch: 102, slot: "home" }, 98: { nextMatch: 102, slot: "away" }, // SF M2
+  // SF → Final
   101: { nextMatch: 104, slot: "home" }, 102: { nextMatch: 104, slot: "away" },
 };
 
