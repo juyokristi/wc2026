@@ -288,9 +288,9 @@ async function assignKnockoutTeamsFromEspn(allEvents: EspnEvent[]): Promise<numb
     const dbHome = slot.teamA?.code?.toUpperCase() ?? null;
     const dbAway = slot.teamB?.code?.toUpperCase() ?? null;
 
-    // Determine whether ESPN's assignment matches what's in the DB
-    const homeOk = espnHome === "RD32" || dbHome === espnHome;
-    const awayOk = espnAway === "RD32" || dbAway === espnAway;
+    // If ESPN says "RD32" (TBD), the DB slot must be empty — not a team we propagated early.
+    const homeOk = espnHome === "RD32" ? dbHome === null : dbHome === espnHome;
+    const awayOk = espnAway === "RD32" ? dbAway === null : dbAway === espnAway;
 
     if (slot.status === "FINISHED" || slot.status === "LIVE") {
       if (homeOk && awayOk) continue; // correct teams, real result — don't touch
@@ -304,6 +304,7 @@ async function assignKnockoutTeamsFromEspn(allEvents: EspnEvent[]): Promise<numb
     }
 
     const updates: Record<string, string | null> = {};
+    // ESPN has a confirmed team → assign it
     if (espnHome !== "RD32" && !homeOk) {
       const teamId = teamByCode.get(espnHome);
       if (teamId) { updates.teamAId = teamId; updates.teamALabel = null; }
@@ -311,6 +312,13 @@ async function assignKnockoutTeamsFromEspn(allEvents: EspnEvent[]): Promise<numb
     if (espnAway !== "RD32" && !awayOk) {
       const teamId = teamByCode.get(espnAway);
       if (teamId) { updates.teamBId = teamId; updates.teamBLabel = null; }
+    }
+    // ESPN says TBD but DB has a wrongly-propagated team → clear it
+    if (espnHome === "RD32" && dbHome !== null) {
+      updates.teamAId = null;
+    }
+    if (espnAway === "RD32" && dbAway !== null) {
+      updates.teamBId = null;
     }
 
     if (Object.keys(updates).length > 0) {
