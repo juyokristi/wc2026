@@ -234,11 +234,11 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
         {/* Teams */}
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg shrink-0">{teamAFlag}</span>
+          <span className="text-2xl shrink-0">{teamAFlag}</span>
           <span className="text-sm font-medium min-w-0 truncate" style={{ color: "var(--foreground)" }}>{teamAName}</span>
           <span className="text-xs px-1 shrink-0" style={{ color: "var(--muted-foreground)" }}>vs</span>
           <span className="text-sm font-medium min-w-0 truncate" style={{ color: "var(--foreground)" }}>{teamBName}</span>
-          <span className="text-lg shrink-0">{teamBFlag}</span>
+          <span className="text-2xl shrink-0">{teamBFlag}</span>
         </div>
 
         {/* Score / input area */}
