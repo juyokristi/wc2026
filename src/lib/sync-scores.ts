@@ -53,8 +53,8 @@ async function fetchDay(dateStr: string): Promise<EspnEvent[]> {
   }
 }
 
-// BRACKET_NEXT is kept as a fallback only for cases where ESPN hasn't yet
-// confirmed the next-round pairing (e.g. team won R32 but R16 slot still shows RD32 on ESPN).
+// BRACKET_NEXT: which match the winner feeds into and which slot they fill.
+// Kept as fallback propagation for when ESPN hasn't confirmed the pairing yet.
 const BRACKET_NEXT: Record<number, { nextMatch: number; slot: "home" | "away" }> = {
   73: { nextMatch: 89, slot: "home" }, 75: { nextMatch: 89, slot: "away" },
   76: { nextMatch: 90, slot: "home" }, 78: { nextMatch: 90, slot: "away" },
@@ -72,6 +72,92 @@ const BRACKET_NEXT: Record<number, { nextMatch: number; slot: "home" | "away" }>
   99: { nextMatch: 102, slot: "home" }, 100: { nextMatch: 102, slot: "away" },
   101: { nextMatch: 104, slot: "home" }, 102: { nextMatch: 104, slot: "away" },
 };
+
+// BRACKET_FEEDERS: reverse of BRACKET_NEXT — which two prior matches feed each slot.
+// homeFeeder → teamA slot, awayFeeder → teamB slot.
+// Match 103 (3rd place) uses the losers of both SFs.
+const BRACKET_FEEDERS: Record<number, { homeFeeder: number; awayFeeder: number; loser?: true }> = {
+  89:  { homeFeeder: 73,  awayFeeder: 75  },  // R16 M1: W(R32 M1) vs W(R32 M3)
+  90:  { homeFeeder: 76,  awayFeeder: 78  },  // R16 M2: W(R32 M4) vs W(R32 M6)
+  91:  { homeFeeder: 74,  awayFeeder: 77  },  // R16 M3: W(R32 M2) vs W(R32 M5)
+  92:  { homeFeeder: 79,  awayFeeder: 80  },  // R16 M4: W(R32 M7) vs W(R32 M8)
+  93:  { homeFeeder: 81,  awayFeeder: 82  },  // R16 M5: W(R32 M9) vs W(R32 M10)
+  94:  { homeFeeder: 83,  awayFeeder: 84  },  // R16 M6: W(R32 M11) vs W(R32 M12)
+  95:  { homeFeeder: 85,  awayFeeder: 87  },  // R16 M7: W(R32 M13) vs W(R32 M15)
+  96:  { homeFeeder: 86,  awayFeeder: 88  },  // R16 M8: W(R32 M14) vs W(R32 M16)
+  97:  { homeFeeder: 89,  awayFeeder: 90  },  // QF M1
+  98:  { homeFeeder: 91,  awayFeeder: 92  },  // QF M2
+  99:  { homeFeeder: 93,  awayFeeder: 94  },  // QF M3
+  100: { homeFeeder: 95,  awayFeeder: 96  },  // QF M4
+  101: { homeFeeder: 97,  awayFeeder: 98  },  // SF M1
+  102: { homeFeeder: 99,  awayFeeder: 100 },  // SF M2
+  103: { homeFeeder: 101, awayFeeder: 102, loser: true }, // 3rd place
+  104: { homeFeeder: 101, awayFeeder: 102 },  // Final
+};
+
+type SlotInfo = {
+  teamA: { name: string } | null;
+  teamALabel: string | null;
+  teamB: { name: string } | null;
+  teamBLabel: string | null;
+};
+
+function computeSlotLabel(
+  feederMatchNum: number,
+  prefix: "W" | "L",
+  matchByNum: Map<number, SlotInfo>
+): string {
+  const feeder = matchByNum.get(feederMatchNum);
+  if (!feeder) return `${prefix}${feederMatchNum}`;
+  const nameA = feeder.teamA?.name ?? feeder.teamALabel;
+  const nameB = feeder.teamB?.name ?? feeder.teamBLabel;
+  if (nameA && nameB) return `${prefix} of ${nameA} & ${nameB}`;
+  if (nameA) return `${prefix} of ${nameA}'s path`;
+  if (nameB) return `${prefix} of ${nameB}'s path`;
+  return `${prefix}${feederMatchNum}`;
+}
+
+// Computes and writes bracket labels for every unconfirmed knockout slot.
+// Labels flow forward: once R32 teams are known, R16 labels resolve; once R16
+// plays, QF labels resolve; and so on through to the Final.
+async function updateKnockoutLabels(): Promise<void> {
+  const knockoutMatches = await prisma.match.findMany({
+    where: { stage: { not: "GROUP" } },
+    select: {
+      id: true, matchNumber: true,
+      teamAId: true, teamBId: true, teamALabel: true, teamBLabel: true,
+      teamA: { select: { name: true } },
+      teamB: { select: { name: true } },
+    },
+  });
+
+  const matchByNum = new Map<number, SlotInfo>();
+  for (const m of knockoutMatches) {
+    if (m.matchNumber !== null) matchByNum.set(m.matchNumber, m);
+  }
+
+  for (const m of knockoutMatches) {
+    if (!m.matchNumber) continue;
+    const feeders = BRACKET_FEEDERS[m.matchNumber];
+    if (!feeders) continue;
+
+    const prefix = feeders.loser ? "L" : "W";
+    const updates: Record<string, string> = {};
+
+    if (!m.teamAId) {
+      const label = computeSlotLabel(feeders.homeFeeder, prefix, matchByNum);
+      if (label !== m.teamALabel) updates.teamALabel = label;
+    }
+    if (!m.teamBId) {
+      const label = computeSlotLabel(feeders.awayFeeder, prefix, matchByNum);
+      if (label !== m.teamBLabel) updates.teamBLabel = label;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.match.update({ where: { id: m.id }, data: updates });
+    }
+  }
+}
 
 async function propagateKnockoutWinners(): Promise<number> {
   const finishedKnockout = await prisma.match.findMany({
@@ -375,6 +461,9 @@ export async function syncScores(): Promise<{
 
   // Step 3: fallback propagation for cases ESPN hasn't confirmed yet
   const propagated = await propagateKnockoutWinners();
+
+  // Step 4: recompute bracket labels for all unconfirmed slots ("W of Canada & Morocco" etc.)
+  await updateKnockoutLabels();
 
   return {
     scoresUpdated,
