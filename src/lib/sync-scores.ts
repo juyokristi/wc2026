@@ -22,6 +22,7 @@ interface EspnCompetitor {
   score: string;
   winner?: boolean;
   team: { abbreviation: string };
+  linescores?: Array<{ displayValue: string; period: number }>;
 }
 
 interface EspnEvent {
@@ -127,12 +128,40 @@ export async function syncScores(): Promise<{
     const { completed, name: statusName } = comp.status.type;
 
     if (completed) {
-      const homeScore = parseInt(homeComp.score, 10);
-      const awayScore = parseInt(awayComp.score, 10);
-      if (isNaN(homeScore) || isNaN(awayScore)) continue;
+      // For AET/penalty matches, score predictions against the 90-min result only.
+      // ESPN's `score` field reflects the full 120-min score; sum periods 1+2 to get regulation.
+      const isAET = statusName === "STATUS_FINAL_AET" || statusName === "STATUS_FINAL_PEN";
+      const overtime = isAET
+        ? statusName === "STATUS_FINAL_PEN" ? "PEN" : "AET"
+        : null;
+
+      let homeScore: number;
+      let awayScore: number;
+      let homeScoreFull: number | null = null;
+      let awayScoreFull: number | null = null;
+
+      const rawHome = parseInt(homeComp.score, 10);
+      const rawAway = parseInt(awayComp.score, 10);
+      if (isNaN(rawHome) || isNaN(rawAway)) continue;
+
+      if (isAET && homeComp.linescores && awayComp.linescores) {
+        homeScore = homeComp.linescores
+          .filter((ls) => ls.period <= 2)
+          .reduce((sum, ls) => sum + parseInt(ls.displayValue, 10), 0);
+        awayScore = awayComp.linescores
+          .filter((ls) => ls.period <= 2)
+          .reduce((sum, ls) => sum + parseInt(ls.displayValue, 10), 0);
+        homeScoreFull = rawHome;
+        awayScoreFull = rawAway;
+      } else {
+        homeScore = rawHome;
+        awayScore = rawAway;
+      }
 
       const scoreA = teamAIsHome ? homeScore : awayScore;
       const scoreB = teamAIsHome ? awayScore : homeScore;
+      const scoreAFull = homeScoreFull !== null ? (teamAIsHome ? homeScoreFull : awayScoreFull) : null;
+      const scoreBFull = awayScoreFull !== null ? (teamAIsHome ? awayScoreFull : homeScoreFull) : null;
 
       let winnerId: string | null = null;
       if (m.stage !== "GROUP") {
@@ -149,7 +178,12 @@ export async function syncScores(): Promise<{
 
       await prisma.match.update({
         where: { id: m.id },
-        data: { scoreA, scoreB, status: "FINISHED", kickoff, ...(winnerId ? { winnerId } : {}) },
+        data: {
+          scoreA, scoreB, status: "FINISHED", kickoff,
+          ...(scoreAFull !== null ? { scoreAFull, scoreBFull } : {}),
+          ...(overtime ? { overtime } : {}),
+          ...(winnerId ? { winnerId } : {}),
+        },
       });
 
       const predictions = await prisma.prediction.findMany({ where: { matchId: m.id } });

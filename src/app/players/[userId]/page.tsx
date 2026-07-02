@@ -309,7 +309,9 @@ export default async function PlayerPage({ params }: Props) {
 
                       {/* Actual result */}
                       <td className="px-3 py-3 text-right text-sm tabular-nums font-medium" style={{ color: "var(--foreground)" }}>
-                        {finished && p.match.scoreA !== null ? `${p.match.scoreA}–${p.match.scoreB}` : "–"}
+                        {finished && p.match.scoreA !== null
+                          ? `${p.match.scoreAFull ?? p.match.scoreA}–${p.match.scoreBFull ?? p.match.scoreB}${p.match.overtime ? ` ${p.match.overtime}` : ""}`
+                          : "–"}
                       </td>
 
                       {/* Points */}

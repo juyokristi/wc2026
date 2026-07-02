@@ -20,6 +20,9 @@ interface SerializedMatch {
   country: string;
   scoreA: number | null;
   scoreB: number | null;
+  scoreAFull: number | null;
+  scoreBFull: number | null;
+  overtime: string | null;
   winnerId: string | null;
   status: string;
 }

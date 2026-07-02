@@ -370,7 +370,7 @@ export default async function DashboardPage() {
                     </span>
                     {finished && p.match.scoreA !== null && (
                       <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
-                        ({p.match.scoreA}–{p.match.scoreB})
+                        ({p.match.scoreAFull ?? p.match.scoreA}–{p.match.scoreBFull ?? p.match.scoreB}{p.match.overtime ? ` ${p.match.overtime}` : ""})
                       </span>
                     )}
                     <PointsBadge pts={p.pointsEarned} />

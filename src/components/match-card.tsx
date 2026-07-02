@@ -31,6 +31,9 @@ interface MatchCardProps {
     country: string;
     scoreA: number | null;
     scoreB: number | null;
+    scoreAFull: number | null;
+    scoreBFull: number | null;
+    overtime: string | null;
     winnerId: string | null;
     status: string;
   };
@@ -244,9 +247,21 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
         {/* Score / input area */}
         <div className="flex items-center gap-2 shrink-0">
           {finished ? (
-            <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
-              {match.scoreA} – {match.scoreB}
-            </span>
+            <div className="flex flex-col items-end leading-tight">
+              <span className="text-base font-bold tabular-nums" style={{ color: "var(--foreground)" }}>
+                {match.scoreAFull ?? match.scoreA} – {match.scoreBFull ?? match.scoreB}
+                {match.overtime && (
+                  <span className="ml-1 text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>
+                    {match.overtime}
+                  </span>
+                )}
+              </span>
+              {match.overtime === "AET" && match.scoreAFull !== null && (
+                <span className="text-xs tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+                  90' {match.scoreA}–{match.scoreB}
+                </span>
+              )}
+            </div>
           ) : live ? (
             <span className="text-xs px-2.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }}>
               Locked

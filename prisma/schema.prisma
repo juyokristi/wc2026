@@ -86,6 +86,9 @@ model Match {
   country     String
   scoreA      Int?
   scoreB      Int?
+  scoreAFull  Int?
+  scoreBFull  Int?
+  overtime    String?
   winnerId    String?
   winner      Team?       @relation("MatchWinner", fields: [winnerId], references: [id])
   status      MatchStatus @default(SCHEDULED)
