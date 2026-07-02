@@ -6,6 +6,7 @@ import { AdminFixPairingsButton } from "@/components/admin-fix-pairings-button";
 import { AdminFdDebugButton } from "@/components/admin-fd-debug-button";
 import { AdminRebuildBracketButton } from "@/components/admin-rebuild-bracket-button";
 import { AdminPopulateR32Button } from "@/components/admin-populate-r32-button";
+import { AdminScoreMatchForm } from "@/components/admin-score-match-form";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -67,6 +68,32 @@ export default async function AdminPage() {
         </div>
 
         <AdminSyncButton doSync={doSync} />
+      </div>
+
+      {/* Manual score correction */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div>
+          <h2
+            className="text-base font-semibold"
+            style={{ color: "var(--foreground)" }}
+          >
+            Correct match score
+          </h2>
+          <p
+            className="text-sm mt-0.5"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Manually set the 90-min score (used for point calculation). For AET/penalty matches,
+            also enter the full score for display. Rescores all predictions on save.
+          </p>
+        </div>
+        <AdminScoreMatchForm />
       </div>
 
       {/* Fix group pairings */}
