@@ -2,56 +2,44 @@ import { prisma } from "@/lib/prisma";
 import { calculatePoints } from "@/lib/scoring";
 import { rebuildBracket } from "@/lib/bracket";
 
-const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world";
+const FD_BASE = "https://api.football-data.org/v4";
 
-const WC_START_STR = "2026-06-11";
-const WC_END_STR   = "2026-07-19";
-
-const ESPN_SLUG_TO_STAGE: Record<string, string> = {
-  "group-stage":     "GROUP",
-  "round-of-32":     "ROUND_OF_32",
-  "round-of-16":     "ROUND_OF_16",
-  "quarterfinals":   "QUARTER_FINAL",
-  "semifinals":      "SEMI_FINAL",
-  "3rd-place-match": "THIRD_PLACE",
-  "final":           "FINAL",
+const FD_STAGE_MAP: Record<string, string> = {
+  GROUP_STAGE:    "GROUP",
+  LAST_32:        "ROUND_OF_32",
+  ROUND_OF_32:    "ROUND_OF_32",
+  LAST_16:        "ROUND_OF_16",
+  ROUND_OF_16:    "ROUND_OF_16",
+  QUARTER_FINALS: "QUARTER_FINAL",
+  QUARTER_FINAL:  "QUARTER_FINAL",
+  SEMI_FINALS:    "SEMI_FINAL",
+  SEMI_FINAL:     "SEMI_FINAL",
+  THIRD_PLACE:    "THIRD_PLACE",
+  FINAL:          "FINAL",
 };
 
-interface EspnCompetitor {
-  homeAway: "home" | "away";
-  score: string;
-  winner?: boolean;
-  team: { abbreviation: string };
-  linescores?: Array<{ displayValue: string; period: number }>;
+const TLA_MAP: Record<string, string> = { URY: "URU" };
+function normTla(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const up = raw.toUpperCase();
+  if (up === "TBD" || up === "") return null;
+  return TLA_MAP[up] ?? up;
 }
 
-interface EspnEvent {
-  id: string;
-  date: string;
-  season?: { slug: string };
-  competitions: Array<{
-    status: { type: { name: string; completed: boolean } };
-    competitors: EspnCompetitor[];
-  }>;
+interface FdScore {
+  winner: string | null;
+  duration: string;
+  fullTime: { home: number | null; away: number | null };
+  regularTime: { home: number | null; away: number | null } | null;
 }
 
-function yyyymmdd(d: Date): string {
-  return (
-    String(d.getUTCFullYear()) +
-    String(d.getUTCMonth() + 1).padStart(2, "0") +
-    String(d.getUTCDate()).padStart(2, "0")
-  );
-}
-
-async function fetchDay(dateStr: string): Promise<EspnEvent[]> {
-  try {
-    const res = await fetch(`${ESPN_BASE}/scoreboard?dates=${dateStr}`, { cache: "no-store" });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { events?: EspnEvent[] };
-    return data.events ?? [];
-  } catch {
-    return [];
-  }
+interface FdMatch {
+  utcDate: string;
+  status: string;
+  stage: string;
+  homeTeam: { tla: string | null };
+  awayTeam: { tla: string | null };
+  score: FdScore;
 }
 
 export async function syncScores(): Promise<{
@@ -61,26 +49,17 @@ export async function syncScores(): Promise<{
   checked: number;
   unseenFdStages: string[];
 }> {
-  const start = new Date(WC_START_STR);
-  const end = new Date(
-    Math.min(Date.now() + 14 * 24 * 60 * 60 * 1000, new Date(WC_END_STR).getTime())
-  );
+  const apiKey = process.env.FOOTBALL_DATA_API_KEY;
+  if (!apiKey) throw new Error("FOOTBALL_DATA_API_KEY not set");
 
-  const dates: string[] = [];
-  const cur = new Date(start);
-  while (cur <= end) {
-    dates.push(yyyymmdd(cur));
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
+  const res = await fetch(`${FD_BASE}/competitions/WC/matches`, {
+    headers: { "X-Auth-Token": apiKey },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`FD API error: ${res.status}`);
 
-  const allEvents: EspnEvent[] = [];
-  for (let i = 0; i < dates.length; i += 20) {
-    const batch = await Promise.all(dates.slice(i, i + 20).map(fetchDay));
-    allEvents.push(...batch.flat());
-  }
+  const { matches: fdMatches } = (await res.json()) as { matches: FdMatch[] };
 
-  // Build a lookup keyed by STAGE:codeA-codeB (both orderings) so ESPN events
-  // can be matched to DB matches regardless of home/away orientation.
   const ourMatches = await prisma.match.findMany({
     where: { teamAId: { not: null }, teamBId: { not: null } },
     include: {
@@ -91,11 +70,9 @@ export async function syncScores(): Promise<{
 
   const byTeamPair = new Map<string, (typeof ourMatches)[0]>();
   for (const m of ourMatches) {
-    const teamA = m.teamA;
-    const teamB = m.teamB;
-    if (teamA && teamB) {
-      const cA = teamA.code.toUpperCase();
-      const cB = teamB.code.toUpperCase();
+    if (m.teamA && m.teamB) {
+      const cA = m.teamA.code.toUpperCase();
+      const cB = m.teamB.code.toUpperCase();
       byTeamPair.set(`${m.stage}:${cA}-${cB}`, m);
       byTeamPair.set(`${m.stage}:${cB}-${cA}`, m);
     }
@@ -103,90 +80,61 @@ export async function syncScores(): Promise<{
 
   let scoresUpdated = 0;
   let kickoffsFixed = 0;
+  const unseenFdStages: string[] = [];
 
-  for (const event of allEvents) {
-    const comp = event.competitions[0];
-    if (!comp) continue;
+  for (const fd of fdMatches) {
+    const dbStage = FD_STAGE_MAP[fd.stage];
+    if (!dbStage) {
+      if (!unseenFdStages.includes(fd.stage)) unseenFdStages.push(fd.stage);
+      continue;
+    }
 
-    const homeComp = comp.competitors.find((c) => c.homeAway === "home");
-    const awayComp = comp.competitors.find((c) => c.homeAway === "away");
-    if (!homeComp || !awayComp) continue;
+    const homeTla = normTla(fd.homeTeam?.tla);
+    const awayTla = normTla(fd.awayTeam?.tla);
+    if (!homeTla || !awayTla) continue;
 
-    const homeCode = homeComp.team.abbreviation.toUpperCase();
-    const awayCode = awayComp.team.abbreviation.toUpperCase();
-    if (homeCode === "RD32" || awayCode === "RD32") continue; // TBD — skip
-
-    const slug = event.season?.slug ?? "";
-    const dbStage = ESPN_SLUG_TO_STAGE[slug];
-    if (!dbStage) continue;
-
-    const m = byTeamPair.get(`${dbStage}:${homeCode}-${awayCode}`);
+    const m = byTeamPair.get(`${dbStage}:${homeTla}-${awayTla}`);
     if (!m) continue;
 
-    const teamAIsHome = m.teamA!.code.toUpperCase() === homeCode;
-    const kickoff = new Date(event.date);
-    const { completed, name: statusName } = comp.status.type;
+    const kickoff = new Date(fd.utcDate);
 
-    if (completed) {
-      // For AET/penalty matches, score predictions against the 90-min result only.
-      // Detect AET by comparing linescore regulation sum to ESPN's total score — don't rely on
-      // status name because ESPN sometimes returns STATUS_FINAL for AET matches too.
-      const rawHome = parseInt(homeComp.score, 10);
-      const rawAway = parseInt(awayComp.score, 10);
-      if (isNaN(rawHome) || isNaN(rawAway)) continue;
+    if (fd.status === "FINISHED") {
+      const { duration, fullTime, regularTime, winner } = fd.score;
+      if (fullTime.home === null || fullTime.away === null) continue;
 
-      let homeScore: number;
-      let awayScore: number;
-      let homeScoreFull: number | null = null;
-      let awayScoreFull: number | null = null;
-      let overtime: string | null = null;
+      const isAET = duration === "EXTRA_TIME" || duration === "PENALTY_SHOOTOUT";
 
-      if (homeComp.linescores?.length && awayComp.linescores?.length) {
-        const homeReg = homeComp.linescores
-          .filter((ls) => ls.period <= 2)
-          .reduce((sum, ls) => sum + parseInt(ls.displayValue, 10), 0);
-        const awayReg = awayComp.linescores
-          .filter((ls) => ls.period <= 2)
-          .reduce((sum, ls) => sum + parseInt(ls.displayValue, 10), 0);
-        homeScore = homeReg;
-        awayScore = awayReg;
-        // Goals in ET → AET. Scoreless ET before pens → detect via status name.
-        if (rawHome !== homeReg || rawAway !== awayReg) {
-          homeScoreFull = rawHome;
-          awayScoreFull = rawAway;
-          overtime = statusName.includes("PEN") ? "PEN" : "AET";
-        } else if (statusName.includes("PEN")) {
-          overtime = "PEN";
-        }
-      } else {
-        homeScore = rawHome;
-        awayScore = rawAway;
-      }
+      // 90-min score — used for point calculation and stored in scoreA/scoreB
+      const home90 = isAET && regularTime?.home !== null && regularTime?.home !== undefined
+        ? regularTime.home
+        : fullTime.home;
+      const away90 = isAET && regularTime?.away !== null && regularTime?.away !== undefined
+        ? regularTime.away
+        : fullTime.away;
 
-      const scoreA = teamAIsHome ? homeScore : awayScore;
-      const scoreB = teamAIsHome ? awayScore : homeScore;
-      const scoreAFull = homeScoreFull !== null ? (teamAIsHome ? homeScoreFull : awayScoreFull) : null;
-      const scoreBFull = awayScoreFull !== null ? (teamAIsHome ? awayScoreFull : homeScoreFull) : null;
+      const teamAIsHome = m.teamA!.code.toUpperCase() === homeTla;
+      const scoreA = teamAIsHome ? home90 : away90;
+      const scoreB = teamAIsHome ? away90 : home90;
+      const scoreAFull = isAET ? (teamAIsHome ? fullTime.home : fullTime.away) : null;
+      const scoreBFull = isAET ? (teamAIsHome ? fullTime.away : fullTime.home) : null;
+      const overtime = isAET
+        ? duration === "PENALTY_SHOOTOUT" ? "PEN" : "AET"
+        : null;
 
       let winnerId: string | null = null;
       if (m.stage !== "GROUP") {
-        if (homeComp.winner === true) {
-          winnerId = teamAIsHome ? m.teamAId! : m.teamBId!;
-        } else if (awayComp.winner === true) {
-          winnerId = teamAIsHome ? m.teamBId! : m.teamAId!;
-        } else if (scoreA > scoreB) {
-          winnerId = m.teamAId!;
-        } else if (scoreB > scoreA) {
-          winnerId = m.teamBId!;
-        }
+        if (winner === "HOME_TEAM") winnerId = teamAIsHome ? m.teamAId! : m.teamBId!;
+        else if (winner === "AWAY_TEAM") winnerId = teamAIsHome ? m.teamBId! : m.teamAId!;
       }
 
       await prisma.match.update({
         where: { id: m.id },
         data: {
-          scoreA, scoreB, status: "FINISHED", kickoff,
-          ...(scoreAFull !== null ? { scoreAFull, scoreBFull } : {}),
-          ...(overtime ? { overtime } : {}),
+          scoreA, scoreB,
+          scoreAFull, scoreBFull,
+          overtime,
+          status: "FINISHED",
+          kickoff,
           ...(winnerId ? { winnerId } : {}),
         },
       });
@@ -216,9 +164,9 @@ export async function syncScores(): Promise<{
       }
 
       scoresUpdated++;
-    } else if (statusName.includes("IN_PROGRESS") || statusName === "STATUS_HALFTIME") {
+    } else if (fd.status === "IN_PLAY" || fd.status === "PAUSED" || fd.status === "LIVE") {
       await prisma.match.update({ where: { id: m.id }, data: { status: "LIVE", kickoff } });
-    } else {
+    } else if (fd.status === "SCHEDULED" || fd.status === "TIMED") {
       if (Math.abs(m.kickoff.getTime() - kickoff.getTime()) > 60_000) {
         await prisma.match.update({ where: { id: m.id }, data: { kickoff } });
         kickoffsFixed++;
@@ -226,14 +174,13 @@ export async function syncScores(): Promise<{
     }
   }
 
-  // Propagate winners into future slots and recompute all labels from current results.
   const { assigned: knockoutAssigned } = await rebuildBracket();
 
   return {
     scoresUpdated,
     kickoffsFixed,
     knockoutAssigned,
-    checked: allEvents.length,
-    unseenFdStages: [],
+    checked: fdMatches.length,
+    unseenFdStages,
   };
 }
