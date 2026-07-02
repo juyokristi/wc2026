@@ -129,30 +129,35 @@ export async function syncScores(): Promise<{
 
     if (completed) {
       // For AET/penalty matches, score predictions against the 90-min result only.
-      // ESPN's `score` field reflects the full 120-min score; sum periods 1+2 to get regulation.
-      const isAET = statusName === "STATUS_FINAL_AET" || statusName === "STATUS_FINAL_PEN";
-      const overtime = isAET
-        ? statusName === "STATUS_FINAL_PEN" ? "PEN" : "AET"
-        : null;
+      // Detect AET by comparing linescore regulation sum to ESPN's total score — don't rely on
+      // status name because ESPN sometimes returns STATUS_FINAL for AET matches too.
+      const rawHome = parseInt(homeComp.score, 10);
+      const rawAway = parseInt(awayComp.score, 10);
+      if (isNaN(rawHome) || isNaN(rawAway)) continue;
 
       let homeScore: number;
       let awayScore: number;
       let homeScoreFull: number | null = null;
       let awayScoreFull: number | null = null;
+      let overtime: string | null = null;
 
-      const rawHome = parseInt(homeComp.score, 10);
-      const rawAway = parseInt(awayComp.score, 10);
-      if (isNaN(rawHome) || isNaN(rawAway)) continue;
-
-      if (isAET && homeComp.linescores && awayComp.linescores) {
-        homeScore = homeComp.linescores
+      if (homeComp.linescores?.length && awayComp.linescores?.length) {
+        const homeReg = homeComp.linescores
           .filter((ls) => ls.period <= 2)
           .reduce((sum, ls) => sum + parseInt(ls.displayValue, 10), 0);
-        awayScore = awayComp.linescores
+        const awayReg = awayComp.linescores
           .filter((ls) => ls.period <= 2)
           .reduce((sum, ls) => sum + parseInt(ls.displayValue, 10), 0);
-        homeScoreFull = rawHome;
-        awayScoreFull = rawAway;
+        homeScore = homeReg;
+        awayScore = awayReg;
+        // Goals in ET → AET. Scoreless ET before pens → detect via status name.
+        if (rawHome !== homeReg || rawAway !== awayReg) {
+          homeScoreFull = rawHome;
+          awayScoreFull = rawAway;
+          overtime = statusName.includes("PEN") ? "PEN" : "AET";
+        } else if (statusName.includes("PEN")) {
+          overtime = "PEN";
+        }
       } else {
         homeScore = rawHome;
         awayScore = rawAway;
