@@ -31,6 +31,8 @@ interface FdScore {
   duration: string;
   fullTime: { home: number | null; away: number | null };
   regularTime: { home: number | null; away: number | null } | null;
+  extraTime: { home: number | null; away: number | null } | null;
+  halfTime: { home: number | null; away: number | null } | null;
 }
 
 interface FdMatch {
@@ -99,18 +101,34 @@ export async function syncScores(): Promise<{
     const kickoff = new Date(fd.utcDate);
 
     if (fd.status === "FINISHED") {
-      const { duration, fullTime, regularTime, winner } = fd.score;
+      const { duration, fullTime, regularTime, extraTime, halfTime, winner } = fd.score;
       if (fullTime.home === null || fullTime.away === null) continue;
 
       const isAET = duration === "EXTRA_TIME" || duration === "PENALTY_SHOOTOUT";
 
-      // 90-min score — used for point calculation and stored in scoreA/scoreB
-      const home90 = isAET && regularTime?.home !== null && regularTime?.home !== undefined
-        ? regularTime.home
-        : fullTime.home;
-      const away90 = isAET && regularTime?.away !== null && regularTime?.away !== undefined
-        ? regularTime.away
-        : fullTime.away;
+      // 90-min score for point calculation.
+      // FD provides regularTime directly when it goes to AET, but falls back gracefully:
+      //   1. regularTime (explicit)
+      //   2. fullTime - extraTime (derivable)
+      //   3. halfTime * 2 is not reliable — just use fullTime as last resort
+      let home90: number;
+      let away90: number;
+      if (!isAET) {
+        home90 = fullTime.home;
+        away90 = fullTime.away;
+      } else if (regularTime?.home !== null && regularTime?.home !== undefined &&
+                 regularTime?.away !== null && regularTime?.away !== undefined) {
+        home90 = regularTime.home;
+        away90 = regularTime.away;
+      } else if (extraTime?.home !== null && extraTime?.home !== undefined &&
+                 extraTime?.away !== null && extraTime?.away !== undefined) {
+        home90 = fullTime.home - extraTime.home;
+        away90 = fullTime.away - extraTime.away;
+      } else {
+        // FD data incomplete — can't derive 90-min score, log and skip scoring
+        console.warn(`[sync] AET match missing regularTime+extraTime: ${homeTla} vs ${awayTla}`);
+        continue;
+      }
 
       const teamAIsHome = m.teamA!.code.toUpperCase() === homeTla;
       const scoreA = teamAIsHome ? home90 : away90;
