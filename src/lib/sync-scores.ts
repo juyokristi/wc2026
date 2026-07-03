@@ -141,8 +141,14 @@ export async function syncScores(): Promise<{
 
       let winnerId: string | null = null;
       if (m.stage !== "GROUP") {
-        if (winner === "HOME_TEAM") winnerId = teamAIsHome ? m.teamAId! : m.teamBId!;
-        else if (winner === "AWAY_TEAM") winnerId = teamAIsHome ? m.teamBId! : m.teamAId!;
+        if (winner === "HOME_TEAM") {
+          winnerId = teamAIsHome ? m.teamAId! : m.teamBId!;
+        } else if (winner === "AWAY_TEAM") {
+          winnerId = teamAIsHome ? m.teamBId! : m.teamAId!;
+        } else if (scoreAFull !== null && scoreBFull !== null && scoreAFull !== scoreBFull) {
+          // FD returns winner=null for some PEN matches; derive from full score
+          winnerId = scoreAFull > scoreBFull ? m.teamAId! : m.teamBId!;
+        }
       }
 
       await prisma.match.update({
