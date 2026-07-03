@@ -64,7 +64,7 @@ export function PredictView({
   STAGE_LABELS,
 }: PredictViewProps) {
   const [view, setView] = useState<"group" | "day" | "open">("day");
-  const [showPast, setShowPast] = useState(false);
+  const [pastMode, setPastMode] = useState<"none" | "one" | "all">("none");
 
   const allMatches: SerializedMatch[] = [
     ...Object.values(byGroup).flat(),
@@ -173,22 +173,38 @@ export function PredictView({
             const pastDays = allDays.filter(
               (day) => new Date(byDay[day][0].kickoff) < todayStart
             );
-            const visibleDays = showPast
-              ? allDays
-              : allDays.filter((day) => new Date(byDay[day][0].kickoff) >= todayStart);
+            const futureDays = allDays.filter(
+              (day) => new Date(byDay[day][0].kickoff) >= todayStart
+            );
+            const visiblePast =
+              pastMode === "all" ? pastDays :
+              pastMode === "one" ? pastDays.slice(-1) : [];
+            const visibleDays = [...visiblePast, ...futureDays];
             return (
               <>
                 {pastDays.length > 0 && (
-                  <button
-                    className="text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
-                    style={{
-                      border: "1px solid var(--border)",
-                      color: "var(--muted-foreground)",
-                    }}
-                    onClick={() => setShowPast((v) => !v)}
-                  >
-                    {showPast ? "Hide past" : `Show past (${pastDays.length} day${pastDays.length !== 1 ? "s" : ""})`}
-                  </button>
+                  <div className="flex gap-2 flex-wrap">
+                    {(
+                      [
+                        ["none", "Hide past"],
+                        ["one", "Yesterday"],
+                        ["all", `All (${pastDays.length}d)`],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        className="text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
+                        style={{
+                          border: "1px solid var(--border)",
+                          backgroundColor: pastMode === mode ? "rgba(150,133,228,0.15)" : "transparent",
+                          color: pastMode === mode ? "#9685E4" : "var(--muted-foreground)",
+                        }}
+                        onClick={() => setPastMode(mode)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {visibleDays.map((day) => (
                   <section key={day}>

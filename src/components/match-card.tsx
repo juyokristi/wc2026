@@ -256,7 +256,7 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
                   </span>
                 )}
               </span>
-              {match.overtime === "AET" && match.scoreAFull !== null && (
+              {match.overtime && match.scoreAFull !== null && (
                 <span className="text-xs tabular-nums" style={{ color: "var(--muted-foreground)" }}>
                   90' {match.scoreA}–{match.scoreB}
                 </span>
