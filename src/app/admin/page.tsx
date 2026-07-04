@@ -7,6 +7,7 @@ import { AdminFdDebugButton } from "@/components/admin-fd-debug-button";
 import { AdminRebuildBracketButton } from "@/components/admin-rebuild-bracket-button";
 import { AdminPopulateR32Button } from "@/components/admin-populate-r32-button";
 import { AdminScoreMatchForm } from "@/components/admin-score-match-form";
+import { AdminRepairQualifiersButton } from "@/components/admin-repair-qualifiers-button";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -68,6 +69,27 @@ export default async function AdminPage() {
         </div>
 
         <AdminSyncButton doSync={doSync} />
+      </div>
+
+      {/* Repair qualifier picks */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          border: "1px solid var(--border)",
+          backgroundColor: "var(--card)",
+        }}
+      >
+        <div>
+          <h2 className="text-base font-semibold" style={{ color: "var(--foreground)" }}>
+            Repair qualifier picks
+          </h2>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+            Finds all finished knockout predictions where the qualifier pick is missing but the
+            predicted score is not a draw. Auto-derives the pick from the predicted score and
+            awards the +2 bonus where the pick was correct.
+          </p>
+        </div>
+        <AdminRepairQualifiersButton />
       </div>
 
       {/* Manual score correction */}
