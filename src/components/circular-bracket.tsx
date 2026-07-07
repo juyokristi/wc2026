@@ -225,7 +225,7 @@ export function CircularBracket({ matches }: CircularBracketProps) {
           const hp = hoveredPathEdges.has(l.ek);
           return (
             <line key={`a${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-              stroke={hp ? "#FE7637" : "#9685E4"} strokeWidth={hp ? 2.5 : 2} strokeLinecap="round" />
+              stroke={hp ? "#FE7637" : "#D4AF37"} strokeWidth={hp ? 3 : 2.5} strokeLinecap="round" />
           );
         })}
         {/* Hovered path (not yet won — dashed) */}
@@ -266,14 +266,14 @@ export function CircularBracket({ matches }: CircularBracketProps) {
                 <circle cx={nx} cy={ny} r={12} fill="transparent" />
                 {isHov && (
                   <circle cx={nx} cy={ny} r={nr + 5} fill="none"
-                    stroke={isLive ? "#32BEBF" : "#9685E4"} strokeWidth={1} opacity={0.4} />
+                    stroke={isLive ? "#32BEBF" : "#D4AF37"} strokeWidth={1} opacity={0.4} />
                 )}
                 <circle cx={nx} cy={ny}
                   r={isHov ? nr + 1.5 : nr}
                   fill={
-                    isHov ? (isLive ? "#32BEBF" : "#9685E4")
+                    isHov ? (isLive ? "#32BEBF" : "#D4AF37")
                       : isLive ? "#32BEBF"
-                      : isActive ? "#9685E4"
+                      : isActive ? "#D4AF37"
                       : isOnPath ? "#FE7637"
                       : "#252538"
                   }

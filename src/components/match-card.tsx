@@ -186,8 +186,8 @@ export function MatchCard({ match, prediction }: MatchCardProps) {
       setError("Enter valid scores");
       return;
     }
-    if (isKnockout && teamsKnown && a === b && !qualifierPick) {
-      setError("Pick who advances in extra time");
+    if (isKnockout && teamsKnown && !qualifierPick) {
+      setError(a === b ? "Pick who advances in extra time" : "Pick who advances");
       return;
     }
     await save(a, b, qualifierPick);

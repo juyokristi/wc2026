@@ -32,16 +32,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Predictions are locked for this match" }, { status: 403 });
   }
 
+  const isKnockout = match.stage !== "GROUP";
+  const teamsKnown = match.teamAId != null && match.teamBId != null;
+
   // Validate qualifier pick for knockout matches
   let resolvedQualifierPick: string | null = null;
   if (qualifierPick != null) {
-    if (match.stage === "GROUP") {
+    if (!isKnockout) {
       return NextResponse.json({ error: "Qualifier pick not available in group stage" }, { status: 400 });
     }
     if (qualifierPick !== match.teamAId && qualifierPick !== match.teamBId) {
       return NextResponse.json({ error: "Invalid qualifier pick" }, { status: 400 });
     }
     resolvedQualifierPick = qualifierPick;
+  } else if (isKnockout && teamsKnown) {
+    // Auto-infer from predicted score for non-draws
+    if (predictedA > predictedB) resolvedQualifierPick = match.teamAId!;
+    else if (predictedB > predictedA) resolvedQualifierPick = match.teamBId!;
+    else {
+      return NextResponse.json({ error: "Pick who advances in extra time" }, { status: 400 });
+    }
   }
 
   const prediction = await prisma.prediction.upsert({
