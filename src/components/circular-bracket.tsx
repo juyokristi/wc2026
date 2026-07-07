@@ -86,7 +86,7 @@ export function CircularBracket({ matches }: CircularBracketProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const {
-    matchByNum, activeEdges, activePositions, eliminatedPositions,
+    matchByNum, activeEdges, aliveEdges, activePositions, eliminatedPositions,
     liveEdges, livePositions, champion,
   } = useMemo(() => {
     const matchByNum = new Map<number, KnockoutMatch>();
@@ -111,20 +111,43 @@ export function CircularBracket({ matches }: CircularBracketProps) {
       }
     }
 
-    const activePositions = new Set<number>();
-    const eliminatedPositions = new Set<number>();
+    // Edges belonging to teams still alive in the tournament (not yet eliminated).
+    // A team's edge stays alive only as long as they keep winning; the moment they lose,
+    // all their edges drop back to "historical winner" (activeEdges only).
+    const aliveEdges = new Set<string>();
+    for (let i = 0; i < 32; i++) {
+      const [r32Num, slot] = OUTER_POSITIONS[i];
+      const r32 = matchByNum.get(r32Num);
+      if (!r32) continue;
+      const teamId = slot === "home" ? r32.teamAId : r32.teamBId;
+      if (!teamId) continue;
+
+      const path: string[] = [`0:${i}`];
+      let stillAlive = true;
+      for (let d = 1; d <= 5; d++) {
+        const g = Math.floor(i / Math.pow(2, d));
+        const mn = DEPTH_MATCHES[d][g];
+        const m = matchByNum.get(mn);
+        if (!m) break; // future round, no data yet — team not eliminated
+        if (!m.winnerId) break; // pending/live match — team not yet eliminated
+        if (m.winnerId !== teamId) { stillAlive = false; break; }
+        path.push(`${d}:${g}`);
+      }
+      if (stillAlive) for (const ek of path) aliveEdges.add(ek);
+    }
+
+    const activePositions = new Set<number>();      // team at this outer position is still alive
+    const eliminatedPositions = new Set<number>();  // team has been knocked out at any round
     const livePositions = new Set<number>();
 
     for (let i = 0; i < 32; i++) {
       const [mn, slot] = OUTER_POSITIONS[i];
       const m = matchByNum.get(mn);
       if (!m) continue;
+      const tid = slot === "home" ? m.teamAId : m.teamBId;
       if (m.status === "LIVE") livePositions.add(i);
-      else if (m.winnerId) {
-        const tid = slot === "home" ? m.teamAId : m.teamBId;
-        if (tid === m.winnerId) activePositions.add(i);
-        else eliminatedPositions.add(i);
-      }
+      else if (tid && aliveEdges.has(`0:${i}`)) activePositions.add(i);
+      else if (tid && m.winnerId) eliminatedPositions.add(i);
     }
 
     const fin = matchByNum.get(104);
@@ -133,7 +156,7 @@ export function CircularBracket({ matches }: CircularBracketProps) {
       champion = fin.winnerId === fin.teamAId ? fin.teamA : fin.teamB;
     }
 
-    return { matchByNum, activeEdges, activePositions, eliminatedPositions, liveEdges, livePositions, champion };
+    return { matchByNum, activeEdges, aliveEdges, activePositions, eliminatedPositions, liveEdges, livePositions, champion };
   }, [matches]);
 
   const hoveredPathEdges = useMemo(() => {
@@ -153,37 +176,37 @@ export function CircularBracket({ matches }: CircularBracketProps) {
   }
 
   // Build lines
-  type Line = { x1: number; y1: number; x2: number; y2: number; active: boolean; live: boolean; ek: string };
+  type Line = { x1: number; y1: number; x2: number; y2: number; active: boolean; alive: boolean; live: boolean; ek: string };
   const lines: Line[] = [];
 
   for (let i = 0; i < 32; i++) {
     const ek = `0:${i}`;
     const [tx, ty] = polar(CX, CY, RADII[0], teamAngle(i));
     const [nx, ny] = polar(CX, CY, RADII[1], nodeAngle(1, Math.floor(i / 2)));
-    lines.push({ x1: tx, y1: ty, x2: nx, y2: ny, active: activeEdges.has(ek), live: liveEdges.has(ek) || livePositions.has(i), ek });
+    lines.push({ x1: tx, y1: ty, x2: nx, y2: ny, active: activeEdges.has(ek), alive: aliveEdges.has(ek), live: liveEdges.has(ek) || livePositions.has(i), ek });
   }
   for (let g = 0; g < 16; g++) {
     const ek = `1:${g}`;
     const [fx, fy] = polar(CX, CY, RADII[1], nodeAngle(1, g));
     const [tx, ty] = polar(CX, CY, RADII[2], nodeAngle(2, Math.floor(g / 2)));
-    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
+    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), alive: aliveEdges.has(ek), live: liveEdges.has(ek), ek });
   }
   for (let k = 0; k < 8; k++) {
     const ek = `2:${k}`;
     const [fx, fy] = polar(CX, CY, RADII[2], nodeAngle(2, k));
     const [tx, ty] = polar(CX, CY, RADII[3], nodeAngle(3, Math.floor(k / 2)));
-    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
+    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), alive: aliveEdges.has(ek), live: liveEdges.has(ek), ek });
   }
   for (let l = 0; l < 4; l++) {
     const ek = `3:${l}`;
     const [fx, fy] = polar(CX, CY, RADII[3], nodeAngle(3, l));
     const [tx, ty] = polar(CX, CY, RADII[4], nodeAngle(4, Math.floor(l / 2)));
-    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
+    lines.push({ x1: fx, y1: fy, x2: tx, y2: ty, active: activeEdges.has(ek), alive: aliveEdges.has(ek), live: liveEdges.has(ek), ek });
   }
   for (let m2 = 0; m2 < 2; m2++) {
     const ek = `4:${m2}`;
     const [fx, fy] = polar(CX, CY, RADII[4], nodeAngle(4, m2));
-    lines.push({ x1: fx, y1: fy, x2: CX, y2: CY, active: activeEdges.has(ek), live: liveEdges.has(ek), ek });
+    lines.push({ x1: fx, y1: fy, x2: CX, y2: CY, active: activeEdges.has(ek), alive: aliveEdges.has(ek), live: liveEdges.has(ek), ek });
   }
 
   const TW = 185;
@@ -219,13 +242,22 @@ export function CircularBracket({ matches }: CircularBracketProps) {
               stroke={hoveredPos !== null ? "#161624" : "#252538"} strokeWidth={1} strokeLinecap="round" />
           );
         })}
-        {/* Active (winner) lines */}
+        {/* Eliminated-winner lines (team won this match but was later knocked out) */}
         {lines.map((l, i) => {
-          if (!l.active || l.live) return null;
+          if (!l.active || l.alive || l.live) return null;
+          const hp = hoveredPathEdges.has(l.ek);
+          return (
+            <line key={`e${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              stroke={hp ? "#FE7637" : "#9685E4"} strokeWidth={hp ? 2.5 : 2} strokeLinecap="round" />
+          );
+        })}
+        {/* Still-alive lines (team still in the tournament) */}
+        {lines.map((l, i) => {
+          if (!l.alive || l.live) return null;
           const hp = hoveredPathEdges.has(l.ek);
           return (
             <line key={`a${i}`} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
-              stroke={hp ? "#FE7637" : "#D4AF37"} strokeWidth={hp ? 3 : 2.5} strokeLinecap="round" />
+              stroke={hp ? "#FE7637" : "#D4AF37"} strokeWidth={hp ? 3.5 : 3} strokeLinecap="round" />
           );
         })}
         {/* Hovered path (not yet won — dashed) */}
@@ -252,11 +284,13 @@ export function CircularBracket({ matches }: CircularBracketProps) {
             const [nx, ny] = polar(CX, CY, RADII[d], ang);
             const ekA = `${d - 1}:${g * 2}`, ekB = `${d - 1}:${g * 2 + 1}`;
             const isLive = liveEdges.has(ekA) || liveEdges.has(ekB);
+            const isAlive = aliveEdges.has(ekA) || aliveEdges.has(ekB);
             const isActive = activeEdges.has(ekA) || activeEdges.has(ekB);
             const matchNum = DEPTH_MATCHES[d][g];
             const isHov = matchNum === hoveredMatchNum;
             const isOnPath = hoveredPos !== null && (hoveredPathEdges.has(ekA) || hoveredPathEdges.has(ekB));
             const nr = 1.5 + d * 0.6;
+            const hoverStroke = isLive ? "#32BEBF" : isAlive ? "#D4AF37" : "#9685E4";
             return (
               <g key={`n${d}-${g}`}
                 onMouseEnter={() => { setHoveredMatchNum(matchNum); setHoveredPos(null); }}
@@ -266,14 +300,15 @@ export function CircularBracket({ matches }: CircularBracketProps) {
                 <circle cx={nx} cy={ny} r={12} fill="transparent" />
                 {isHov && (
                   <circle cx={nx} cy={ny} r={nr + 5} fill="none"
-                    stroke={isLive ? "#32BEBF" : "#D4AF37"} strokeWidth={1} opacity={0.4} />
+                    stroke={hoverStroke} strokeWidth={1} opacity={0.4} />
                 )}
                 <circle cx={nx} cy={ny}
                   r={isHov ? nr + 1.5 : nr}
                   fill={
-                    isHov ? (isLive ? "#32BEBF" : "#D4AF37")
+                    isHov ? hoverStroke
                       : isLive ? "#32BEBF"
-                      : isActive ? "#D4AF37"
+                      : isAlive ? "#D4AF37"
+                      : isActive ? "#9685E4"
                       : isOnPath ? "#FE7637"
                       : "#252538"
                   }
@@ -325,7 +360,7 @@ export function CircularBracket({ matches }: CircularBracketProps) {
           const opacity = isElim && !isHov ? 0.25 : anyHov && !isHov ? 0.45 : 1;
           const ang = teamAngle(i);
           const [bx, by] = polar(CX, CY, RADII[0], ang);
-          const stroke = isHov ? "#FE7637" : isLive ? "#32BEBF" : isActive ? "#9685E4" : "#2a2a3e";
+          const stroke = isHov ? "#FE7637" : isLive ? "#32BEBF" : isActive ? "#D4AF37" : isElim ? "#9685E4" : "#2a2a3e";
           const r = isHov ? 23 : 21;
 
           return (
@@ -426,7 +461,7 @@ export function CircularBracket({ matches }: CircularBracketProps) {
             const isActive = activePositions.has(hoveredPos);
             const isLive = livePositions.has(hoveredPos);
             const statusText = isLive ? "● LIVE now" : isActive ? "Still in bracket" : isElim ? "Eliminated" : "TBD";
-            const statusColor = isLive ? "#32BEBF" : isActive ? "#9685E4" : "var(--muted-foreground)";
+            const statusColor = isLive ? "#32BEBF" : isActive ? "#D4AF37" : "var(--muted-foreground)";
             return (
               <>
                 <p style={{ fontSize: 15, marginBottom: 3 }}>
